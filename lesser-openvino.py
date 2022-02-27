@@ -15,6 +15,28 @@ import xml.etree.ElementTree as et
 
 import common_def
 
+def disp_result(data):
+    N,C,H,W = data.shape
+    for c in range(C):
+        print('C=', c)
+        for h in range(H):
+            for w in range(W):
+                print('{:6.3f},'.format(data[0,c,h,w]), end='')
+            print()
+
+with open('mnist_featmap.pickle', 'rb') as f:
+    fmap = pickle.load(f)
+
+with open('mnist-test-image.pickle', 'rb') as f:
+    test_images = pickle.load(f)
+'''
+img = test_images[0]
+cv2img = img.reshape(1,28,28).transpose((1,2,0)).astype(np.uint8)
+cv2.imshow('image', cv2img)
+cv2.waitKey(0)
+#cv2img = cv2.merge([cv2img, cv2img, cv2img])
+cv2.imwrite('mnist.png', cv2img)
+'''
 
 class plugins:
     def __init__(self):
@@ -30,10 +52,11 @@ class plugins:
         setattr(self, plugin_name, module)
         self.plugins[plugin_name] = module
 
-    def import_plugins(self, plugin_path:str):
+    def load_plugins(self, plugin_path:str):
         plugins = glob.glob(os.path.join(plugin_path, '**', '*.py'), recursive=True)
         for plugin in plugins:
             self.import_plugin(plugin_path, plugin)
+
 
 def read_IR_Model(model):
     bname, ext = os.path.splitext(model)
@@ -50,8 +73,8 @@ def read_IR_Model(model):
 
     return xml, bin
 
-def parse_IR_XML(xml:et.ElementTree):
 
+def parse_IR_XML(xml:et.ElementTree):
     root = xml.getroot()
     if root.tag != 'net':
         print('not an OpenVINO IR file')
@@ -104,6 +127,7 @@ def parse_IR_XML(xml:et.ElementTree):
 
     return dict_layers, list_edges
 
+
 def build_graph(ir_layers:dict, ir_edges:list):
     G = nx.DiGraph()
     for node_id, node_info in ir_layers.items():
@@ -133,12 +157,14 @@ def set_constants_to_graph(G, bin:bytes):
         decoded_data = struct.unpack(formatstring, blobBin)     # decode the buffer
         node['const'] = { 'data':decoded_data, 'element_info':precision, 'size':size, 'decode_info':common_def.format_config[precision] }
 
+
 def find_node_by_type(G:nx.DiGraph, type:str):
     results = []
     for node in G.nodes():
         if G.nodes[node]['type'] == type:
             results.append((node, G.nodes[node]['name']))
     return results
+
 
 def schedule_tasks(G):
     def search_predecessors(G, node_ids):
@@ -153,6 +179,7 @@ def schedule_tasks(G):
     search_predecessors(G, outputs)
     return task_list
 
+
 def prepare_inputs(task:str, G:nx.DiGraph):
     predecessors = list(G.pred[task])
     inputs = {}
@@ -166,6 +193,7 @@ def prepare_inputs(task:str, G:nx.DiGraph):
         inputs[sink_port] = data
     return inputs
 
+
 def compare_results(node_name:str, result:np.array, GT:dict):
     print('{} : '.format(node_name), end='')
     if node_name not in GT:
@@ -177,6 +205,7 @@ def compare_results(node_name:str, result:np.array, GT:dict):
         print(' OOO match')
     else:
         print(' XXX unmatch')
+
 
 def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
     for task in task_list:      # task_list = [ 0, 1, 2, ... ]  Numbers are the node_id
@@ -195,8 +224,9 @@ def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
                 G.nodes[task]['output'][port_id]['data'] = data
                 #print(G.nodes[task]['output'])
                 compare_results(node_name, data, fmap)
-                if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
-                    disp_result(data)
+                #if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
+                #    disp_result(data)
+
 
 def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
     # Set input data for inference
@@ -216,40 +246,6 @@ def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
         res[node_name] = result
 
     return res
-
-'''
-from keras.datasets import mnist
-(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
-train_images = train_images.reshape(-1, 1, 28, 28, 1)
-test_images = test_images.reshape(-1, 1, 28, 28, 1)
-with open('mnist-train.pickle', 'wb') as f:
-    pickle.dump(train_images, f)
-with open('mnist-test-image.pickle', 'wb') as f:
-    pickle.dump(test_images, f)
-'''
-with open('mnist-test-image.pickle', 'rb') as f:
-    test_images = pickle.load(f)
-#print(test_images.shape)
-'''
-img = test_images[0]
-cv2img = img.reshape(1,28,28).transpose((1,2,0)).astype(np.uint8)
-cv2.imshow('image', cv2img)
-cv2.waitKey(0)
-#cv2img = cv2.merge([cv2img, cv2img, cv2img])
-cv2.imwrite('mnist.png', cv2img)
-'''
-
-def disp_result(data):
-    N,C,H,W = data.shape
-    for c in range(C):
-        print('C=', c)
-        for h in range(H):
-            for w in range(W):
-                print('{:6.3f},'.format(data[0,c,h,w]), end='')
-            print()
-
-with open('mnist_featmap.pickle', 'rb') as f:
-    fmap = pickle.load(f)
 
 
 def dump_graph(G:nx.DiGraph):
@@ -273,14 +269,12 @@ def main():
     G=build_graph(layers, edges)
     #dump_graph(G)
     #find_node_by_type(G, 'Parameter')
-    #find_node_by_type(G, 'Const')
-    #find_node_by_type(G, 'Result')
+
     set_constants_to_graph(G, bin)
     task_list = schedule_tasks(G)
-    #print(task_list)
 
     p = plugins()
-    p.import_plugins('plugins')
+    p.load_plugins('plugins')
 
     inblob = test_images[0]
     res = run_infer({'conv2d_input':inblob}, task_list, G, p)

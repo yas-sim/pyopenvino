@@ -12,7 +12,6 @@ def SoftMax(inputs):
     return res
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
-    debug = True
     if debug:
         print(node)
 

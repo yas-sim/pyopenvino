@@ -5,10 +5,14 @@ import common_def
 def name():
     print('MatMul')
 
-def MatMul(inputs):
+def MatMul(inputs, data):
     input0 = inputs[0]
     input1 = inputs[1]
-    res = np.matmul(input0, input1.transpose((1,0)))
+    if data['transpose_a'] == 'true':
+        input0 = input0.T
+    if data['transpose_b'] == 'true':
+        input1 = input1.T
+    res = np.matmul(input0, input1)
     return res
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
@@ -24,8 +28,9 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
         if data.shape != input_port['dims']:
             print('input data shape mismatch')
             return None
+    data = node['data']
 
-    res = MatMul(inputs)
+    res = MatMul(inputs, data)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }
