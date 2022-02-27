@@ -149,14 +149,12 @@ def find_node_by_type(G:nx.DiGraph, type:str):
     for node in G.nodes():
         if G.nodes[node]['type'] == type:
             results.append((node, G.nodes[node]['name']))
-    #print(results)
     return results
 
 def schedule_tasks(G):
     def search_predecessors(G, node_ids):
         for node_id in node_ids:
             predecessors = list(G.pred[node_id])
-            #print(node_id, '->', predecessors)
             search_predecessors(G, predecessors)
             if node_id not in task_list:
                 task_list.append(node_id)
@@ -164,7 +162,6 @@ def schedule_tasks(G):
     task_list = []
     outputs = [ key for key,_ in outputs]
     search_predecessors(G, outputs)
-    #print(task_list)
     return task_list
 
 def prepare_inputs(task:str, G:nx.DiGraph):
@@ -197,13 +194,14 @@ def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
             for port_id, data in res.items():
                 G.nodes[task]['output'][port_id]['data'] = data
                 #print(G.nodes[task]['output'])
-                
+                '''
                 if node_type == 'Convolution':
                     openvino = fmap[node_name][2]
                     if np.allclose(openvino, data, rtol=0.001):
                         print('match')
                     else:
                         print('unmatch')
+                '''
 
 def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
     # Set input data for inference
@@ -211,7 +209,18 @@ def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
         for node in G.nodes:
             if G.nodes[node]['name'] == node_name:
                 G.nodes[node]['param'] = val
+
     run_tasks(task_list, G, p)
+
+    outputs = find_node_by_type(G, 'Result')
+    res = {}
+    for output in outputs:
+        node_id = output[0]
+        result = G.nodes[node_id]['result']
+        node_name = G.nodes[node_id]['name']
+        res[node_name] = result
+
+    return res
 
 '''
 from keras.datasets import mnist
@@ -284,7 +293,9 @@ def main():
     p.import_plugins('plugins')
 
     inblob = test_images[0]
-    run_infer({'conv2d_input':inblob}, task_list, G, p)
+    res = run_infer({'conv2d_input':inblob}, task_list, G, p)
+
+    print(res)
 
 if __name__ == '__main__':
     sys.exit(main())

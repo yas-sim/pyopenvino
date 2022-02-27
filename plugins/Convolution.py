@@ -34,11 +34,9 @@ def conv2d(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
                             dt  = input[0, cc, dx+fx, dy+fy]
                             cnv += flt * dt						# Convolution
                 output[0, fc, dy, dx] = cnv
-    #disp_result(output)
     return output
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
-    debug=True
     if debug:
         print(node)
 
