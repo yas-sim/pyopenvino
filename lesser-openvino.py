@@ -2,22 +2,19 @@
 
 import sys, os
 import struct
+import pickle
 
 import glob
 import importlib
 
+import cv2
+import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import xml.etree.ElementTree as et
 
-def print_dict(dic:dict, indent_level=0, indent_step=4):
-    for key, val in dic.items():
-        print(' ' * indent_step * indent_level, key, ': ', end='')
-        if type(val) is dict:
-            print()
-            print_dict(val, indent_level+1)
-        else:
-            print(val)
+import common_def
+
 
 class plugins:
     def __init__(self):
@@ -55,10 +52,6 @@ def read_IR_Model(model):
 
 def parse_IR_XML(xml:et.ElementTree):
 
-    def string_to_tuple(string:str):
-        tmp_list = [ int(item) for item in string.split(',') ]
-        return tuple(tmp_list)
-
     root = xml.getroot()
     if root.tag != 'net':
         print('not an OpenVINO IR file')
@@ -74,19 +67,33 @@ def parse_IR_XML(xml:et.ElementTree):
         if data is not None:
             dict_layer['data'] = data.attrib
             if 'shape' in dict_layer['data']:
-                dict_layer['data']['shape'] = string_to_tuple(dict_layer['data']['shape'])
+                dict_layer['data']['shape'] = common_def.string_to_tuple(dict_layer['data']['shape'])
             if 'stride' in dict_layer['data']:
-                dict_layer['data']['stride'] = string_to_tuple(dict_layer['data']['stride'])
+                dict_layer['data']['stride'] = common_def.string_to_tuple(dict_layer['data']['stride'])
+
+        input = layer.find('input')
+        if input is not None:
+            dict_layer['input'] = {}
+            for port in input.findall('port'):
+                port_id = port.attrib['id']
+                port_prec = port.attrib['precision']
+                dims = port.findall('./dim')
+                list_dims = []
+                for dim in dims:
+                    list_dims.append(int(dim.text))
+                dict_layer['input'][int(port_id)] = { 'precision': port_prec, 'dims':tuple(list_dims) }
 
         output = layer.find('output')
         if output is not None:
-            port = output.find('port')
-            dict_layer['output'] = { 'port':port.attrib }
-            dims = port.findall('./dim')
-            list_dims = []
-            for dim in dims:
-                list_dims.append(int(dim.text))
-            dict_layer['output'] = { 'dims':tuple(list_dims) }
+            dict_layer['output'] = {}
+            for port in output.findall('port'):
+                port_id = port.attrib['id']
+                port_prec = port.attrib['precision']
+                dims = port.findall('./dim')
+                list_dims = []
+                for dim in dims:
+                    list_dims.append(int(dim.text))
+                dict_layer['output'][int(port_id)] = { 'precision': port_prec, 'dims':tuple(list_dims) }
         dict_layers[int(layer_id)] = dict_layer
 
     list_edges = []
@@ -125,8 +132,6 @@ def build_graph(ir_layers:dict, ir_edges:list):
 
 
 def set_constants_to_graph(G, bin:bytes):
-    format_config = { 'FP32': ['f', 4], 'FP16': ['e', 2], 'F32' : ['f', 4], 'F16' : ['e', 2],
-                      'I64' : ['q', 8], 'I32' : ['i', 4], 'I16' : ['h', 2], 'I8'  : ['b', 1], 'U8'  : ['B', 1] }
     consts = find_node_by_type(G, 'Const')
     for const in consts:
         node = G.nodes[const[0]]
@@ -135,9 +140,9 @@ def set_constants_to_graph(G, bin:bytes):
         size      = int(data['size'])
         precision = data['element_type'].upper()
         blobBin = bin[offset:offset+size]                       # cut out the weight for this blob from the weight buffer
-        formatstring = '<' + format_config[precision][0] * (len(blobBin)//format_config[precision][1])
+        formatstring = '<' + common_def.format_config[precision][0] * (len(blobBin)//common_def.format_config[precision][1])
         decoded_data = struct.unpack(formatstring, blobBin)     # decode the buffer
-        node['const'] = { 'data':decoded_data, 'element_info':precision, 'size':size, 'decode_info':format_config[precision] }
+        node['const'] = { 'data':decoded_data, 'element_info':precision, 'size':size, 'decode_info':common_def.format_config[precision] }
 
 def find_node_by_type(G:nx.DiGraph, type:str):
     results = []
@@ -162,17 +167,100 @@ def schedule_tasks(G):
     #print(task_list)
     return task_list
 
+def prepare_inputs(task:str, G:nx.DiGraph):
+    predecessors = list(G.pred[task])
+    inputs = {}
+    for predecessor in predecessors:
+        edge = G.edges[(predecessor, task)]  # edge = { 'connection':(from-layer, from-port, to-layer, to-port)}
+        connection = edge['connection']
+        source_node = G.nodes[connection[0]]
+        source_port = connection[1]
+        data = source_node['output'][source_port]['data']
+        sink_port = connection[3]
+        inputs[sink_port] = data
+    return inputs
+
 def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
     for task in task_list:
         node = G.nodes[task]
         node_type = node['type']
-        p.plugins[node_type].name()
+        node_name = G.nodes[task]['name']
+        #print(node_type)
+        inputs = {}
+        if 'input' in node:     # Prepare input data for computation
+            inputs = prepare_inputs(task, G)
+
+        res = p.plugins[node_type].compute(node, inputs, debug=False)
+
+        # Set computation result to output ports
+        if len(res)>0:
+            for port_id, data in res.items():
+                G.nodes[task]['output'][port_id]['data'] = data
+                #print(G.nodes[task]['output'])
+                
+                if node_type == 'Convolution':
+                    openvino = fmap[node_name][2]
+                    if np.allclose(openvino, data, rtol=0.001):
+                        print('match')
+                    else:
+                        print('unmatch')
 
 def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
-    for node_name, val in inputs:
+    # Set input data for inference
+    for node_name, val in inputs.items():
         for node in G.nodes:
-            if node['name'] == node_name:
-                node['param'] = val
+            if G.nodes[node]['name'] == node_name:
+                G.nodes[node]['param'] = val
+    run_tasks(task_list, G, p)
+
+'''
+from keras.datasets import mnist
+(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+train_images = train_images.reshape(-1, 1, 28, 28, 1)
+test_images = test_images.reshape(-1, 1, 28, 28, 1)
+with open('mnist-train.pickle', 'wb') as f:
+    pickle.dump(train_images, f)
+with open('mnist-test-image.pickle', 'wb') as f:
+    pickle.dump(test_images, f)
+'''
+with open('mnist-test-image.pickle', 'rb') as f:
+    test_images = pickle.load(f)
+#print(test_images.shape)
+'''
+img = test_images[0]
+cv2img = img.reshape(1,28,28).transpose((1,2,0)).astype(np.uint8)
+cv2.imshow('image', cv2img)
+cv2.waitKey(0)
+#cv2img = cv2.merge([cv2img, cv2img, cv2img])
+cv2.imwrite('mnist.png', cv2img)
+'''
+
+with open('mnist_featmap.pickle', 'rb') as f:
+    fmap = pickle.load(f)
+#for node in fmap:
+#    print(node)
+#print(fmap)
+#print(fmap['conv2d_input'])
+#print(fmap['StatefulPartitionedCall/sequential/conv2d/Conv2D'])
+#sys.exit(0)
+def disp_result(data):
+    N,C,H,W = data.shape
+    for c in range(C):
+        print('C=', c)
+        for h in range(H):
+            for w in range(W):
+                print('{:6.3f},'.format(data[0,c,h,w]), end='')
+            print()
+#disp_result(np.array(fmap['StatefulPartitionedCall/sequential/conv2d/Conv2D'][2], dtype=np.float32).reshape(1,32,26,26))
+
+def dump_graph(G:nx.DiGraph):
+    for node_id, node_contents in G.nodes.items():
+        print('node id=', node_id)
+        print_dict(node_contents)
+    for edge_id, edge_contents in G.edges.items():
+        print('edge_id=', edge_id)
+        print(' '*2, edge_contents)
+
 
 def main():
     xml, bin = read_IR_Model('mnist.xml')
@@ -181,9 +269,10 @@ def main():
         return -1
 
     layers, edges = parse_IR_XML(xml)
-    print(layers, edges)
+    #print(layers, edges)
 
     G=build_graph(layers, edges)
+    #dump_graph(G)
     #find_node_by_type(G, 'Parameter')
     #find_node_by_type(G, 'Const')
     #find_node_by_type(G, 'Result')
@@ -193,10 +282,31 @@ def main():
 
     p = plugins()
     p.import_plugins('plugins')
-    #p.plugin_test.test_func('shimura')
-    #p.plugins['plugin_test'].test_func('shimura')
-    
+
+    inblob = test_images[0]
     run_infer({'conv2d_input':inblob}, task_list, G, p)
 
 if __name__ == '__main__':
     sys.exit(main())
+
+'''
+conv2d_input
+StatefulPartitionedCall/sequential/conv2d/Conv2D
+StatefulPartitionedCall/sequential/conv2d/BiasAdd/Add
+StatefulPartitionedCall/sequential/conv2d/Relu
+StatefulPartitionedCall/sequential/max_pooling2d/MaxPool
+StatefulPartitionedCall/sequential/conv2d_1/Conv2D
+StatefulPartitionedCall/sequential/conv2d_1/BiasAdd/Add
+StatefulPartitionedCall/sequential/conv2d_1/Relu
+StatefulPartitionedCall/sequential/max_pooling2d_1/MaxPool
+StatefulPartitionedCall/sequential/target_conv_layer/Conv2D
+StatefulPartitionedCall/sequential/target_conv_layer/BiasAdd/Add
+StatefulPartitionedCall/sequential/target_conv_layer/Relu
+StatefulPartitionedCall/sequential/target_conv_layer/Relu/Transpose
+StatefulPartitionedCall/sequential/flatten/Reshape
+StatefulPartitionedCall/sequential/dense/MatMul
+StatefulPartitionedCall/sequential/dense/BiasAdd/Add
+StatefulPartitionedCall/sequential/dense/Relu
+StatefulPartitionedCall/sequential/dense_1/MatMul
+StatefulPartitionedCall/sequential/dense_1/BiasAdd/Add
+'''
