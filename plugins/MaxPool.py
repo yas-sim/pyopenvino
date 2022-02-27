@@ -12,8 +12,8 @@ def MaxPool(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, a
     kh, kw  = kernel
 
     # output feature map size
-    oh = (h-kh)//sh+1
-    ow = (w-kw)//sw+1
+    oh = (h-kh)//sh + 1
+    ow = (w-kw)//sw + 1
 
     res = np.zeros((n, c, oh, ow), dtype=np.float32)
 

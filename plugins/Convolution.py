@@ -19,19 +19,23 @@ def conv2d(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
     kernel         = inputs[1]
     n, c, h, w     = input.shape   # Input image
     kn, kc, kh, kw = kernel.shape  # Kernel
-    filters        = kn
+    sh, sw         = strides
 
-    output = np.zeros((n, filters, h-kh+1, w-kw+1), np.float32)
+    # output feature map size
+    oh = (h-kh)//sh + 1
+    ow = (w-kw)//sw + 1
 
-    for fc in range(filters):
-        for dy in range(0, h-kh+1, strides[0]):
-            for dx in range(0, w-kw+1, strides[1]):
+    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
+
+    for fc in range(kn):  # Number of filters
+        for dy in range(oh):
+            for dx in range(ow):
                 cnv = 0
                 for cc in range(c):
                     for fy in range(kh):
                         for fx in range(kw):
                             flt = kernel[fc, cc, fy, fx]		# fx and fy are swapped (matmul)
-                            dt  = input[0, cc, dx+fx, dy+fy]
+                            dt  = input[0, cc, dx*sw+fx, dy*sh+fy]
                             cnv += flt * dt						# Convolution
                 output[0, fc, dy, dx] = cnv
     return output
@@ -54,13 +58,19 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
     pads_begin = common_def.string_to_tuple(node['data']['pads_begin'])
     pads_end = common_def.string_to_tuple(node['data']['pads_end'])
     auto_pad = True if node['data']['auto_pad']=='valid' else False
+
     res = conv2d(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }
     return res
 
-#Convolution
+# {'name': 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D', 'type': 'Convolution', 'version': 'opset1', 
+# 'data': {'strides': '1, 1', 'dilations': '1, 1', 'pads_begin': '0, 0', 'pads_end': '0, 0', 'auto_pad': 'valid'}, 
+# 'input': {0: {'precision': 'FP32', 'dims': (1, 32, 13, 13)}, 
+#           1: {'precision': 'FP32', 'dims': (64, 32, 3, 3)}}, 
+# 'output': {2: {'precision': 'FP32', 'dims': (1, 64, 11, 11)}}}
+
 #{'name': 'StatefulPartitionedCall/sequential/conv2d/Conv2D', 'type': 'Convolution', 'version': 'opset1', 
 #   'data': {'strides': '1, 1', 'dilations': '1, 1', 'pads_begin': '0, 0', 'pads_end': '0, 0', 'auto_pad': 'valid'}, 
 #   'input': {0: {'precision': 'FP32', 'dims': (1, 1, 28, 28)}, 

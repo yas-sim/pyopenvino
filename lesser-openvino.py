@@ -101,10 +101,7 @@ def parse_IR_XML(xml:et.ElementTree):
     for edge in edges:
         attr = edge.attrib
         list_edges.append((int(attr['from-layer']), int(attr['from-port']), int(attr['to-layer']), int(attr['to-port'])))
-    '''
-    print_dict(dict_layers)
-    print(list_edges)
-    '''
+
     return dict_layers, list_edges
 
 def build_graph(ir_layers:dict, ir_edges:list):
@@ -119,15 +116,7 @@ def build_graph(ir_layers:dict, ir_edges:list):
         #nx.set_edge_attributes(G, values={(edge[0], edge[2]):{'connection':edge}})
     if not nx.is_directed_acyclic_graph(G):
         print('Graph is not an directed acyclic graph')
-        return -1
-    '''
-    nx.draw_planar(G)
-    plt.show()
-    '''
-    '''
-    print(G.nodes[0]['name'])
-    print(G.nodes.data())
-    '''
+        return None
     return G
 
 
@@ -177,12 +166,23 @@ def prepare_inputs(task:str, G:nx.DiGraph):
         inputs[sink_port] = data
     return inputs
 
+def compare_results(node_name:str, result:np.array, GT:dict):
+    print('{} : '.format(node_name), end='')
+    if node_name not in GT:
+        print('skip')
+        return
+    GT_data = GT[node_name][2]
+    print('{} / {}'.format(result.shape, GT_data.shape), end='')
+    if np.allclose(result, GT_data, rtol=0.001):
+        print(' OOO match')
+    else:
+        print(' XXX unmatch')
+
 def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
-    for task in task_list:
+    for task in task_list:      # task_list = [ 0, 1, 2, ... ]  Numbers are the node_id
         node = G.nodes[task]
         node_type = node['type']
         node_name = G.nodes[task]['name']
-        #print(node_type)
         inputs = {}
         if 'input' in node:     # Prepare input data for computation
             inputs = prepare_inputs(task, G)
@@ -194,14 +194,9 @@ def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
             for port_id, data in res.items():
                 G.nodes[task]['output'][port_id]['data'] = data
                 #print(G.nodes[task]['output'])
-                '''
-                if node_type == 'Convolution':
-                    openvino = fmap[node_name][2]
-                    if np.allclose(openvino, data, rtol=0.001):
-                        print('match')
-                    else:
-                        print('unmatch')
-                '''
+                compare_results(node_name, data, fmap)
+                if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
+                    disp_result(data)
 
 def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
     # Set input data for inference
@@ -244,14 +239,6 @@ cv2.waitKey(0)
 cv2.imwrite('mnist.png', cv2img)
 '''
 
-with open('mnist_featmap.pickle', 'rb') as f:
-    fmap = pickle.load(f)
-#for node in fmap:
-#    print(node)
-#print(fmap)
-#print(fmap['conv2d_input'])
-#print(fmap['StatefulPartitionedCall/sequential/conv2d/Conv2D'])
-#sys.exit(0)
 def disp_result(data):
     N,C,H,W = data.shape
     for c in range(C):
@@ -260,7 +247,10 @@ def disp_result(data):
             for w in range(W):
                 print('{:6.3f},'.format(data[0,c,h,w]), end='')
             print()
-#disp_result(np.array(fmap['StatefulPartitionedCall/sequential/conv2d/Conv2D'][2], dtype=np.float32).reshape(1,32,26,26))
+
+with open('mnist_featmap.pickle', 'rb') as f:
+    fmap = pickle.load(f)
+
 
 def dump_graph(G:nx.DiGraph):
     for node_id, node_contents in G.nodes.items():
