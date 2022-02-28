@@ -17,6 +17,7 @@ import xml.etree.ElementTree as et
 
 import common_def
 
+# -------------------------------------------------------------------------------------------------------
 
 class IECore:
     def __init__(self):
@@ -25,51 +26,219 @@ class IECore:
         self.plugins.load_plugins('plugins')
 
     def read_network(self, xmlpath:str, binpath:str):
-        self.xml, self.bin = read_IR_Model(xmlpath)
-        if self.xml is None or self.bin is None:
+        net = CNNNetwork(self)
+        net.read_IR_Model(xmlpath)
+        if net.xml is None or net.bin is None:
             print('failed to read model file')
             return -1
-        self.layers, self.edges = parse_IR_XML(self.xml)
-        self.G = build_graph(self.layers, self.edges)
-        set_constants_to_graph(self.G, self.bin)
-        self.task_list = schedule_tasks(self.G)
-        net = CNNNetwork(self)
+        net.parse_IR_XML()
+        self.G = net.build_graph()
+        net.set_constants_to_graph()
         return net
 
+# -------------------------------------------------------------------------------------------------------
 
 class CNNNetwork:
     def __init__(self, iecore:IECore):
         self.ie = iecore
+        self.xml = None
+        self.bin = None
+        self.layers = None
+        self.edges = None
+
+    def read_IR_Model(self, model):
+        bname, ext = os.path.splitext(model)
+        xmlFile = bname + '.xml'
+        binFile = bname + '.bin'
+        if not os.path.isfile(xmlFile) or not os.path.isfile(binFile):
+            print('model {} is not found'.format(model))
+            return
+
+        self.xml = et.parse(bname+'.xml')
+
+        with open(bname+'.bin', 'rb') as f:
+            self.bin = f.read()
+
+
+    # Parse IR XML and generate 'layer(dict)' and 'edge(list)' data structure
+    def parse_IR_XML(self):
+        root = self.xml.getroot()
+        if root.tag != 'net':
+            print('not an OpenVINO IR file')
+            return
+
+        dict_layers = {}
+        layers = root.findall('./layers/layer')
+        for layer in layers:
+            dict_layer = {}
+            layer_id = layer.attrib['id']
+            dict_layer = { key:val for key, val in layer.attrib.items() if key!='id' }
+            data = layer.find('data')
+            if data is not None:
+                dict_layer['data'] = data.attrib
+                if 'shape' in dict_layer['data']:
+                    dict_layer['data']['shape'] = common_def.string_to_tuple(dict_layer['data']['shape'])
+                if 'stride' in dict_layer['data']:
+                    dict_layer['data']['stride'] = common_def.string_to_tuple(dict_layer['data']['stride'])
+
+            input = layer.find('input')
+            if input is not None:
+                dict_layer['input'] = {}
+                for port in input.findall('port'):
+                    port_id = port.attrib['id']
+                    port_prec = port.attrib['precision']
+                    dims = port.findall('./dim')
+                    list_dims = []
+                    for dim in dims:
+                        list_dims.append(int(dim.text))
+                    dict_layer['input'][int(port_id)] = { 'precision': port_prec, 'dims':tuple(list_dims) }
+
+            output = layer.find('output')
+            if output is not None:
+                dict_layer['output'] = {}
+                for port in output.findall('port'):
+                    port_id = port.attrib['id']
+                    port_prec = port.attrib['precision']
+                    dims = port.findall('./dim')
+                    list_dims = []
+                    for dim in dims:
+                        list_dims.append(int(dim.text))
+                    dict_layer['output'][int(port_id)] = { 'precision': port_prec, 'dims':tuple(list_dims) }
+            dict_layers[int(layer_id)] = dict_layer
+
+        list_edges = []
+        edges = root.findall('./edges/edge')
+        for edge in edges:
+            attr = edge.attrib
+            list_edges.append((int(attr['from-layer']), int(attr['from-port']), int(attr['to-layer']), int(attr['to-port'])))
+
+        self.layers = dict_layers
+        self.edges = list_edges
+
+    # Build directional acyclic graph (nx.DiGraph) using 'networkx' as the representation of the DL model
+    def build_graph(self):
+        self.G = nx.DiGraph()
+        for node_id, node_info in self.layers.items():
+            self.G.add_node(node_id)
+            for key, val in node_info.items():
+                self.G.nodes[node_id][key] = val
+        for edge in self.edges:  # edge = (from-layer,from-port, to-layer, to-port)
+            self.G.add_edge(edge[0], edge[2])
+            self.G.edges[(edge[0], edge[2])]['connection'] = edge
+        if not nx.is_directed_acyclic_graph(self.G):
+            print('Graph is not an directed acyclic graph')
+            return
+
+    # Set 'Const' data from '.bin' file data
+    # Cut out binary weight/bias/constant data, decode it, and store the result to the DiGraph nodes
+    def set_constants_to_graph(self):
+        consts = self.find_node_by_type('Const')
+        for const in consts:
+            node = self.G.nodes[const[0]]
+            data = node['data']
+            offset    = int(data['offset'])
+            size      = int(data['size'])
+            precision = data['element_type'].upper()
+            blobBin = self.bin[offset:offset+size]                       # cut out the weight for this blob from the weight buffer
+            formatstring = '<' + common_def.format_config[precision][0] * (len(blobBin)//common_def.format_config[precision][1])
+            decoded_data = struct.unpack(formatstring, blobBin)          # decode the buffer
+            node['const'] = { 'data':decoded_data, 'element_info':precision, 'size':size, 'decode_info':common_def.format_config[precision] }
+
+    # Find a node from DiGraph
+    def find_node_by_type(self, type:str):
+        results = []
+        for node in self.G.nodes():
+            if self.G.nodes[node]['type'] == type:
+                results.append((node, self.G.nodes[node]['name']))
+        return results
 
     def load_network(self, net:nx.DiGraph, device:str='CPU', num_infer:int=1):
-        exenet = Executable_Network(self.ie)
+        exenet = Executable_Network(self)
+        exenet.schedule_tasks()
         return exenet
 
+# -------------------------------------------------------------------------------------------------------
 
 class Executable_Network:
-    def __init__(self, iecore:IECore):
-        self.ie = iecore
+    def __init__(self, cnnnetwork:CNNNetwork):
+        self.cnnnet = cnnnetwork
 
-    def set_iecore(self, iecore:IECore):
-        self.ie = iecore
+    def schedule_tasks(self):
+        def search_predecessors(G, node_ids, task_list:list):
+            for node_id in node_ids:
+                predecessors = list(G.pred[node_id])
+                search_predecessors(G, predecessors, task_list)
+                if node_id not in task_list:
+                    task_list.append(node_id)
+        outputs = self.cnnnet.find_node_by_type('Result')
+        self.task_list = []
+        outputs = [ key for key,_ in outputs]
+        search_predecessors(self.cnnnet.G, outputs, self.task_list)
 
-    def infer(self, inputs):
-        self.res = run_infer(inputs, self.ie.task_list, self.ie.G, self.ie.plugins)
-        return self.res
+    # Gather and prepare the input data which needed to run a task
+    def prepare_inputs_for_task(self, task:str):
+        predecessors = list(self.cnnnet.G.pred[task])
+        inputs = {}
+        for predecessor in predecessors:
+            edge = self.cnnnet.G.edges[(predecessor, task)]  # edge = { 'connection':(from-layer, from-port, to-layer, to-port)}
+            connection = edge['connection']
+            source_node = self.cnnnet.G.nodes[connection[0]]
+            source_port = connection[1]
+            data = source_node['output'][source_port]['data']
+            sink_port = connection[3]
+            inputs[sink_port] = data
+        return inputs
 
+    # Run tasks in the order specified in the task_list
+    def run_tasks(self):
+        G = self.cnnnet.G
+        p = self.cnnnet.ie.plugins
+        for task in self.task_list:      # task_list = [ 0, 1, 2, ... ]  Numbers are the node_id
+            node = G.nodes[task]
+            node_type = node['type']
+            node_name = G.nodes[task]['name']
+            inputs = {}
+            if 'input' in node:     # Prepare input data for computation
+                inputs = self.prepare_inputs_for_task(task)
 
-# Display np.ndarray data for debug purpose
-def disp_result(data):
-    N,C,H,W = data.shape
-    for c in range(C):
-        print('C=', c)
-        for h in range(H):
-            for w in range(W):
-                print('{:6.3f},'.format(data[0,c,h,w]), end='')
-            print()
+            res = p.plugins[node_type].compute(node, inputs, debug=False)  # Run a task (op)
 
+            # Set computation result to output ports
+            if len(res)>0:
+                for port_id, data in res.items():
+                    G.nodes[task]['output'][port_id]['data'] = data
+                    # Result compare
+                    #print(G.nodes[task]['output'])
+                    #if fmap is not None:
+                    #    self.compare_results(node_name, data)
+                    #    #if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
+                    #    #if 'StatefulPartitionedCall/sequential/conv2d/Conv2D' == node_name:
+                    #    #    disp_result(data)
 
-# Class for pperator plugins handling
+    # Run inference
+    def infer(self, inputs:dict):
+        G = self.cnnnet.G
+        # Set input data for inference
+        for node_name, val in inputs.items():
+            for node in G.nodes:
+                if G.nodes[node]['name'] == node_name:
+                    G.nodes[node]['param'] = val
+
+        self.run_tasks()
+
+        outputs = self.cnnnet.find_node_by_type('Result')
+        res = {}
+        for output in outputs:
+            node_id = output[0]
+            result = G.nodes[node_id]['result']
+            node_name = G.nodes[node_id]['name']
+            res[node_name] = result
+
+        return res
+
+# -------------------------------------------------------------------------------------------------------
+
+# Class for operator plugins
 class plugins:
     def __init__(self):
         self.plugins={}
@@ -92,141 +261,9 @@ class plugins:
             self.import_plugin(plugin_path, plugin)
 
 
-def read_IR_Model(model):
-    bname, ext = os.path.splitext(model)
-    xmlFile = bname + '.xml'
-    binFile = bname + '.bin'
-    if not os.path.isfile(xmlFile) or not os.path.isfile(binFile):
-        print('model {} is not found'.format(model))
-        return None, None
+# -------------------------------------------------------------------------------------------------------
 
-    xml = et.parse(bname+'.xml')
-
-    with open(bname+'.bin', 'rb') as f:
-        bin = f.read()
-
-    return xml, bin
-
-
-def parse_IR_XML(xml:et.ElementTree):
-    root = xml.getroot()
-    if root.tag != 'net':
-        print('not an OpenVINO IR file')
-        return -1
-
-    dict_layers = {}
-    layers = root.findall('./layers/layer')
-    for layer in layers:
-        dict_layer = {}
-        layer_id = layer.attrib['id']
-        dict_layer = { key:val for key, val in layer.attrib.items() if key!='id' }
-        data = layer.find('data')
-        if data is not None:
-            dict_layer['data'] = data.attrib
-            if 'shape' in dict_layer['data']:
-                dict_layer['data']['shape'] = common_def.string_to_tuple(dict_layer['data']['shape'])
-            if 'stride' in dict_layer['data']:
-                dict_layer['data']['stride'] = common_def.string_to_tuple(dict_layer['data']['stride'])
-
-        input = layer.find('input')
-        if input is not None:
-            dict_layer['input'] = {}
-            for port in input.findall('port'):
-                port_id = port.attrib['id']
-                port_prec = port.attrib['precision']
-                dims = port.findall('./dim')
-                list_dims = []
-                for dim in dims:
-                    list_dims.append(int(dim.text))
-                dict_layer['input'][int(port_id)] = { 'precision': port_prec, 'dims':tuple(list_dims) }
-
-        output = layer.find('output')
-        if output is not None:
-            dict_layer['output'] = {}
-            for port in output.findall('port'):
-                port_id = port.attrib['id']
-                port_prec = port.attrib['precision']
-                dims = port.findall('./dim')
-                list_dims = []
-                for dim in dims:
-                    list_dims.append(int(dim.text))
-                dict_layer['output'][int(port_id)] = { 'precision': port_prec, 'dims':tuple(list_dims) }
-        dict_layers[int(layer_id)] = dict_layer
-
-    list_edges = []
-    edges = root.findall('./edges/edge')
-    for edge in edges:
-        attr = edge.attrib
-        list_edges.append((int(attr['from-layer']), int(attr['from-port']), int(attr['to-layer']), int(attr['to-port'])))
-
-    return dict_layers, list_edges
-
-
-def build_graph(ir_layers:dict, ir_edges:list):
-    G = nx.DiGraph()
-    for node_id, node_info in ir_layers.items():
-        G.add_node(node_id)
-        for key, val in node_info.items():
-            G.nodes[node_id][key] = val
-    for edge in ir_edges:  # edge = (from-layer,from-port, to-layer, to-port)
-        G.add_edge(edge[0], edge[2])
-        G.edges[(edge[0], edge[2])]['connection'] = edge
-    if not nx.is_directed_acyclic_graph(G):
-        print('Graph is not an directed acyclic graph')
-        return None
-    return G
-
-
-def set_constants_to_graph(G, bin:bytes):
-    consts = find_node_by_type(G, 'Const')
-    for const in consts:
-        node = G.nodes[const[0]]
-        data = node['data']
-        offset    = int(data['offset'])
-        size      = int(data['size'])
-        precision = data['element_type'].upper()
-        blobBin = bin[offset:offset+size]                       # cut out the weight for this blob from the weight buffer
-        formatstring = '<' + common_def.format_config[precision][0] * (len(blobBin)//common_def.format_config[precision][1])
-        decoded_data = struct.unpack(formatstring, blobBin)     # decode the buffer
-        node['const'] = { 'data':decoded_data, 'element_info':precision, 'size':size, 'decode_info':common_def.format_config[precision] }
-
-
-def find_node_by_type(G:nx.DiGraph, type:str):
-    results = []
-    for node in G.nodes():
-        if G.nodes[node]['type'] == type:
-            results.append((node, G.nodes[node]['name']))
-    return results
-
-
-def schedule_tasks(G):
-    def search_predecessors(G, node_ids):
-        for node_id in node_ids:
-            predecessors = list(G.pred[node_id])
-            search_predecessors(G, predecessors)
-            if node_id not in task_list:
-                task_list.append(node_id)
-    outputs = find_node_by_type(G, 'Result')
-    task_list = []
-    outputs = [ key for key,_ in outputs]
-    search_predecessors(G, outputs)
-    return task_list
-
-
-def prepare_inputs(task:str, G:nx.DiGraph):
-    predecessors = list(G.pred[task])
-    inputs = {}
-    for predecessor in predecessors:
-        edge = G.edges[(predecessor, task)]  # edge = { 'connection':(from-layer, from-port, to-layer, to-port)}
-        connection = edge['connection']
-        source_node = G.nodes[connection[0]]
-        source_port = connection[1]
-        data = source_node['output'][source_port]['data']
-        sink_port = connection[3]
-        inputs[sink_port] = data
-    return inputs
-
-
+# DEBUG: Compare data for accuracy checking (with a pre-generated dict data {'node-name': np.array(featmap), ...})
 def compare_results(node_name:str, result:np.array, GT:dict):
     if node_name not in GT:
         print('{} : Skipped'.format(node_name))
@@ -240,50 +277,18 @@ def compare_results(node_name:str, result:np.array, GT:dict):
     print('{}{} : {} / {}\x1b[37m\n'.format(col, node_name, result.shape, GT_data.shape), end='')
 
 
-def run_tasks(task_list:list, G:nx.DiGraph, p:plugins, fmap:dict=None):
-    for task in task_list:      # task_list = [ 0, 1, 2, ... ]  Numbers are the node_id
-        node = G.nodes[task]
-        node_type = node['type']
-        node_name = G.nodes[task]['name']
-        inputs = {}
-        if 'input' in node:     # Prepare input data for computation
-            inputs = prepare_inputs(task, G)
-
-        res = p.plugins[node_type].compute(node, inputs, debug=False)
-
-        # Set computation result to output ports
-        if len(res)>0:
-            for port_id, data in res.items():
-                G.nodes[task]['output'][port_id]['data'] = data
-                #print(G.nodes[task]['output'])
-                if fmap is not None:
-                    compare_results(node_name, data, fmap)
-                    #if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
-                    #if 'StatefulPartitionedCall/sequential/conv2d/Conv2D' == node_name:
-                    #    disp_result(data)
+# DEBUG: Display np.ndarray data for debug purpose
+def disp_result(data):
+    N,C,H,W = data.shape
+    for c in range(C):
+        print('C=', c)
+        for h in range(H):
+            for w in range(W):
+                print('{:6.3f},'.format(data[0,c,h,w]), end='')
+            print()
 
 
-def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins, fmap:dict=None):
-    # Set input data for inference
-    for node_name, val in inputs.items():
-        for node in G.nodes:
-            if G.nodes[node]['name'] == node_name:
-                G.nodes[node]['param'] = val
-
-    run_tasks(task_list, G, p, fmap)
-
-    outputs = find_node_by_type(G, 'Result')
-    res = {}
-    for output in outputs:
-        node_id = output[0]
-        result = G.nodes[node_id]['result']
-        node_name = G.nodes[node_id]['name']
-        res[node_name] = result
-
-    return res
-
-
-# Dump network graph for debug purpose
+# DEBUG: Dump network graph for debug purpose
 def dump_graph(G:nx.DiGraph):
     for node_id, node_contents in G.nodes.items():
         print('node id=', node_id)
@@ -291,54 +296,3 @@ def dump_graph(G:nx.DiGraph):
     for edge_id, edge_contents in G.edges.items():
         print('edge_id=', edge_id)
         print(' '*2, edge_contents)
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model', type=str, default='mnist.xml', help='input IR model path (default=mnist.xml)')
-    parser.add_argument('-i', '--input', type=str, default='mnist7.png', help='input image data path (default=mnist7.png)')
-    parser.add_argument('-f', '--feat_map', type=str, help='Grand truth feature map data to compare (*.pickle)')
-    parser.add_argument('-d', '--dump', action='store_true', help='Compare feature maps')
-    args = parser.parse_args()
-
-    xml, bin = read_IR_Model(args.model)
-    if xml is None or bin is None:
-        print('failed to read model file')
-        return -1
-
-    layers, edges = parse_IR_XML(xml)
-    G=build_graph(layers, edges)
-    #dump_graph(G)
-    #find_node_by_type(G, 'Parameter')
-
-    set_constants_to_graph(G, bin)
-    task_list = schedule_tasks(G)
-
-    # Load ops plug-ins
-    p = plugins()
-    p.load_plugins('plugins')
-
-    # Load GT intermediate feature map data for accuracy comparison
-    fmap = None
-    if args.feat_map:
-        with open(args.feat_map, 'rb') as f:
-            fmap = pickle.load(f)
-
-    # Load image to infer
-    cv2img = cv2.imread(args.input)
-    inblob = cv2img.copy()
-    cv2img = cv2.resize(cv2img, (0,0), fx=4.0, fy=4.0)
-    cv2.imshow('image', cv2img)
-    cv2.waitKey(2000)
-
-    inblob = cv2.split(inblob)[0]
-    inblob = inblob.reshape(1,1,28,28).astype(np.float32)
-
-    res = run_infer({'conv2d_input':inblob}, task_list, G, p, fmap)
-
-    print(res)
-
-if __name__ == '__main__':
-    sys.exit(main())
-
-
