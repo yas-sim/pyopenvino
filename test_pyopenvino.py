@@ -14,6 +14,10 @@ cv2img = cv2.imread('resources/mnist2.png')
 inblob = cv2.split(cv2img)[0]
 inblob = inblob.reshape(1,1,28,28).astype(np.float32)
 
+cv2img = cv2.resize(cv2img, (0,0), fx=4.0, fy=4.0)
+cv2.imshow('input image', cv2img)
+cv2.waitKey(1*1000)
+
 atime = 0
 nitr = 1
 for i in range(nitr):
@@ -25,6 +29,4 @@ for i in range(nitr):
 print(atime/nitr, 'sec/inf')
 
 m = np.argsort(res['Func/StatefulPartitionedCall/output/_11:0'][0])[::-1]
-
-print(m)
-print(res)
+print(m, res)
