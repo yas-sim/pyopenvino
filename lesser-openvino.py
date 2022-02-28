@@ -1,16 +1,17 @@
 # lesser OpenVINO
 
+import enable_escape_sequence_win
+
 import sys, os
 import struct
 import pickle
-
 import glob
 import importlib
+import argparse
 
 import cv2
 import numpy as np
 import networkx as nx
-import matplotlib.pyplot as plt
 import xml.etree.ElementTree as et
 
 import common_def
@@ -24,19 +25,6 @@ def disp_result(data):
                 print('{:6.3f},'.format(data[0,c,h,w]), end='')
             print()
 
-with open('mnist_featmap.pickle', 'rb') as f:
-    fmap = pickle.load(f)
-
-with open('mnist-test-image.pickle', 'rb') as f:
-    test_images = pickle.load(f)
-'''
-img = test_images[0]
-cv2img = img.reshape(1,28,28).transpose((1,2,0)).astype(np.uint8)
-cv2.imshow('image', cv2img)
-cv2.waitKey(0)
-#cv2img = cv2.merge([cv2img, cv2img, cv2img])
-cv2.imwrite('mnist.png', cv2img)
-'''
 
 class plugins:
     def __init__(self):
@@ -137,7 +125,6 @@ def build_graph(ir_layers:dict, ir_edges:list):
     for edge in ir_edges:  # edge = (from-layer,from-port, to-layer, to-port)
         G.add_edge(edge[0], edge[2])
         G.edges[(edge[0], edge[2])]['connection'] = edge
-        #nx.set_edge_attributes(G, values={(edge[0], edge[2]):{'connection':edge}})
     if not nx.is_directed_acyclic_graph(G):
         print('Graph is not an directed acyclic graph')
         return None
@@ -195,19 +182,19 @@ def prepare_inputs(task:str, G:nx.DiGraph):
 
 
 def compare_results(node_name:str, result:np.array, GT:dict):
-    print('{} : '.format(node_name), end='')
     if node_name not in GT:
-        print('skip')
+        print('{} : Skipped'.format(node_name))
         return
     GT_data = GT[node_name][2]
-    print('{} / {}'.format(result.shape, GT_data.shape), end='')
-    if np.allclose(result, GT_data, rtol=0.001):
-        print(' OOO match')
+    match = np.allclose(result, GT_data, rtol=0.001)
+    if match:
+        col = '\x1b[32m'
     else:
-        print(' XXX unmatch')
+        col = '\x1b[31m'
+    print('{}{} : {} / {}\x1b[37m\n'.format(col, node_name, result.shape, GT_data.shape), end='')
 
 
-def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
+def run_tasks(task_list:list, G:nx.DiGraph, p:plugins, fmap:dict=None):
     for task in task_list:      # task_list = [ 0, 1, 2, ... ]  Numbers are the node_id
         node = G.nodes[task]
         node_type = node['type']
@@ -223,19 +210,21 @@ def run_tasks(task_list:list, G:nx.DiGraph, p:plugins):
             for port_id, data in res.items():
                 G.nodes[task]['output'][port_id]['data'] = data
                 #print(G.nodes[task]['output'])
-                compare_results(node_name, data, fmap)
-                #if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
-                #    disp_result(data)
+                if fmap is not None:
+                    compare_results(node_name, data, fmap)
+                    #if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
+                    #if 'StatefulPartitionedCall/sequential/conv2d/Conv2D' == node_name:
+                    #    disp_result(data)
 
 
-def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
+def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins, fmap:dict=None):
     # Set input data for inference
     for node_name, val in inputs.items():
         for node in G.nodes:
             if G.nodes[node]['name'] == node_name:
                 G.nodes[node]['param'] = val
 
-    run_tasks(task_list, G, p)
+    run_tasks(task_list, G, p, fmap)
 
     outputs = find_node_by_type(G, 'Result')
     res = {}
@@ -248,6 +237,7 @@ def run_infer(inputs:dict, task_list:list, G:nx.DiGraph, p:plugins):
     return res
 
 
+# Dump network graph for debug purpose
 def dump_graph(G:nx.DiGraph):
     for node_id, node_contents in G.nodes.items():
         print('node id=', node_id)
@@ -258,14 +248,19 @@ def dump_graph(G:nx.DiGraph):
 
 
 def main():
-    xml, bin = read_IR_Model('mnist.xml')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--model', type=str, default='mnist.xml', help='input IR model path (default=mnist.xml)')
+    parser.add_argument('-i', '--input', type=str, default='mnist7.png', help='input image data path (default=mnist7.png)')
+    parser.add_argument('-f', '--feat_map', type=str, help='Grand truth feature map data to compare (*.pickle)')
+    #parser.add_argument('-c', '--compare', action='store_true', help='Compare feature maps')
+    args = parser.parse_args()
+
+    xml, bin = read_IR_Model(args.model)
     if xml is None or bin is None:
         print('failed to read model file')
         return -1
 
     layers, edges = parse_IR_XML(xml)
-    #print(layers, edges)
-
     G=build_graph(layers, edges)
     #dump_graph(G)
     #find_node_by_type(G, 'Parameter')
@@ -273,35 +268,29 @@ def main():
     set_constants_to_graph(G, bin)
     task_list = schedule_tasks(G)
 
+    # Load ops plug-ins
     p = plugins()
     p.load_plugins('plugins')
 
-    inblob = test_images[0]
-    res = run_infer({'conv2d_input':inblob}, task_list, G, p)
+    # Load GT intermediate feature map data for accuracy comparison
+    fmap = None
+    if args.feat_map:
+        with open(args.feat_map, 'rb') as f:
+            fmap = pickle.load(f)
+
+    # Load image to infer
+    cv2img = cv2.imread(args.input)
+    inblob = cv2img.copy()
+    cv2img = cv2.resize(cv2img, (0,0), fx=4.0, fy=4.0)
+    cv2.imshow('image', cv2img)
+    cv2.waitKey(2000)
+
+    inblob = cv2.split(inblob)[0]
+    inblob = inblob.reshape(1,1,28,28).astype(np.float32)
+
+    res = run_infer({'conv2d_input':inblob}, task_list, G, p, fmap)
 
     print(res)
 
 if __name__ == '__main__':
     sys.exit(main())
-
-'''
-conv2d_input
-StatefulPartitionedCall/sequential/conv2d/Conv2D
-StatefulPartitionedCall/sequential/conv2d/BiasAdd/Add
-StatefulPartitionedCall/sequential/conv2d/Relu
-StatefulPartitionedCall/sequential/max_pooling2d/MaxPool
-StatefulPartitionedCall/sequential/conv2d_1/Conv2D
-StatefulPartitionedCall/sequential/conv2d_1/BiasAdd/Add
-StatefulPartitionedCall/sequential/conv2d_1/Relu
-StatefulPartitionedCall/sequential/max_pooling2d_1/MaxPool
-StatefulPartitionedCall/sequential/target_conv_layer/Conv2D
-StatefulPartitionedCall/sequential/target_conv_layer/BiasAdd/Add
-StatefulPartitionedCall/sequential/target_conv_layer/Relu
-StatefulPartitionedCall/sequential/target_conv_layer/Relu/Transpose
-StatefulPartitionedCall/sequential/flatten/Reshape
-StatefulPartitionedCall/sequential/dense/MatMul
-StatefulPartitionedCall/sequential/dense/BiasAdd/Add
-StatefulPartitionedCall/sequential/dense/Relu
-StatefulPartitionedCall/sequential/dense_1/MatMul
-StatefulPartitionedCall/sequential/dense_1/BiasAdd/Add
-'''

@@ -30,14 +30,12 @@ def conv2d(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
             for dx in range(ow):
-                cnv = 0
-                for cc in range(c):
+                for cc in range(kc):
                     for fy in range(kh):
                         for fx in range(kw):
-                            flt = kernel[fc, cc, fy, fx]		# fx and fy are swapped (matmul)
-                            dt  = input[0, cc, dx*sw+fx, dy*sh+fy]
-                            cnv += flt * dt						# Convolution
-                output[0, fc, dy, dx] = cnv
+                            flt = kernel[fc, cc, fy, fx]
+                            dt  = input[0, cc, dy*sh+fy, dx*sw+fx]
+                            output[0, fc, dy, dx] += flt * dt
     return output
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
