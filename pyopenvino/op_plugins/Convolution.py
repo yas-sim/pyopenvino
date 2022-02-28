@@ -2,6 +2,10 @@
 import common_def
 import numpy as np
 
+def name():
+    print('Convolution')
+
+
 def disp_result(data):
     N,C,H,W = data.shape
     for c in range(C):
@@ -11,10 +15,29 @@ def disp_result(data):
                 print('{:6.3f},'.format(data[0,c,h,w]), end='')
             print()
 
-def name():
-    print('Convolution')
 
-def conv2d(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
+def kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
+    input          = inputs[0]
+    kernel         = inputs[1]
+    n, c, h, w     = input.shape   # Input image
+    kn, kc, kh, kw = kernel.shape  # Kernel
+    sh, sw         = strides
+
+    # output feature map size
+    oh = (h-kh)//sh + 1
+    ow = (w-kw)//sw + 1
+
+    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
+
+    for fc in range(kn):  # Number of filters
+        for dy in range(oh):
+            for dx in range(ow):
+                patch = input[0, :, dy*sh:dy*sh+kh, dx*sw:dx*sw+kw]
+                output[0, fc, dy, dx] = np.sum(patch*kernel[fc])
+    return output
+
+
+def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
     input          = inputs[0]
     kernel         = inputs[1]
     n, c, h, w     = input.shape   # Input image
@@ -38,6 +61,7 @@ def conv2d(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
                             output[0, fc, dy, dx] += flt * dt
     return output
 
+
 def compute(node:dict, inputs:dict=None, debug:bool=False):
     if debug:
         print(node)
@@ -57,7 +81,8 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
     pads_end = common_def.string_to_tuple(node['data']['pads_end'])
     auto_pad = True if node['data']['auto_pad']=='valid' else False
 
-    res = conv2d(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
+    #res = kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
+    res = kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

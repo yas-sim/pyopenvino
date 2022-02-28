@@ -5,11 +5,12 @@ import common_def
 def name():
     print('Reshape')
 
-def Reshape(inputs):
+def kernel_Reshape_numpy(inputs):
     input0 = inputs[0]
     input1 = inputs[1]   # dims
     res = input0.reshape(input1)
     return res
+
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
     if debug:
@@ -25,7 +26,7 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
             print('input data shape mismatch')
             return None
 
-    res = Reshape(inputs)
+    res = kernel_Reshape_numpy(inputs)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

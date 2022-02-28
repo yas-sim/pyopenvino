@@ -1,9 +1,13 @@
-# lesser OpenVINO
+# pyOpenVINO
+#
+# Full-Python OpenVINO-alike inference engine implementation
 
 import sys, os
 import struct
 import glob
 import importlib
+
+sys.path.append('./pyopenvino')
 
 # Enable escape sequence on Windows console (for colored text)
 if os.name == 'nt':
@@ -12,7 +16,6 @@ if os.name == 'nt':
 import networkx as nx
 import xml.etree.ElementTree as et
 
-sys.path.append('./pyopenvino')
 import common_def
 
 # -------------------------------------------------------------------------------------------------------

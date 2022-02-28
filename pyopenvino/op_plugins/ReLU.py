@@ -5,10 +5,20 @@ import common_def
 def name():
     print('ReLU')
 
-def ReLU(inputs:dict):
+
+def kernel_ReLU_numpy(inputs:dict):
     input0 = inputs[0]
     res = np.where(input0<0, 0, input0)      # ReLU
     return res
+
+
+def kernel_ReLU_naive(inputs:dict):
+    input0 = inputs[0].ravel()
+    output = np.zeros((input0.size), dtype=input0.dtype)
+    for i in range(output.size):
+        output[i] = 0 if input0[i]<0 else input0[i]
+    return output.reshape(inputs[0].shape)
+
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
     if debug:
@@ -24,7 +34,8 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
             print('input data shape mismatch')
             return None
 
-    res = ReLU(inputs)
+    #res = kernel_ReLU_numpy(inputs)
+    res = kernel_ReLU_naive(inputs)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

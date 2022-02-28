@@ -1,15 +1,29 @@
 # SoftMax
+import math
 import numpy as np
 import common_def
 
 def name():
     print('SoftMax')
 
-def SoftMax(inputs):
+
+def kernel_SoftMax_numpy(inputs):
     input0 = inputs[0]
     u = np.sum(np.exp(input0))
     res = np.exp(input0)/u
     return res
+
+
+def kernel_SoftMax_naive(inputs):
+    input0 = inputs[0].ravel()
+    output = np.zeros((inputs[0].shape), dtype=np.float32)
+    exp_sum = 0
+    for dt in input0:
+        exp_sum += math.exp(dt)
+    for i in range(input0.size):
+        output[0, i] = math.exp(input0[i]) / exp_sum
+    return output
+
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
     if debug:
@@ -25,7 +39,8 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
             print('input data shape mismatch')
             return None
 
-    res = SoftMax(inputs)
+    #res = kernel_SoftMax_numpy(inputs)
+    res = kernel_SoftMax_naive(inputs)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

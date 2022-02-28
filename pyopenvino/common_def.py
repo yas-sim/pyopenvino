@@ -8,6 +8,14 @@ format_config = { 'FP32': ['f', 4], 'FP16': ['e', 2], 'F32' : ['f', 4], 'F16' : 
 type_convert_tbl = { 'f32':np.float32, 'f16':np.float16, 'i64':np.int64, 'i32':np.int32, 'i16':np.int16, 'i8':np.int8, 'u8':np.uint8,
                     'FP32':np.float32, 'FP16':np.float16, 'I64':np.int64 }
 
+
+def string_to_tuple(string:str):
+    tmp_list = [ int(item) for item in string.split(',') ]
+    return tuple(tmp_list)
+
+# -------------------------------------------------------------------------------------------------------
+
+# DEBUG: Print dict object
 def print_dict(dic:dict, indent_level=0, indent_step=4):
     for key, val in dic.items():
         print(' ' * indent_step * indent_level, key, ': ', end='')
@@ -17,11 +25,6 @@ def print_dict(dic:dict, indent_level=0, indent_step=4):
         else:
             print(val)
 
-def string_to_tuple(string:str):
-    tmp_list = [ int(item) for item in string.split(',') ]
-    return tuple(tmp_list)
-
-# -------------------------------------------------------------------------------------------------------
 
 # DEBUG: Compare data for accuracy checking (with a pre-generated dict data {'node-name': np.array(featmap), ...})
 def compare_results(node_name:str, result:np.array, GT:dict):

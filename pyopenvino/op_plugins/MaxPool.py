@@ -5,7 +5,8 @@ import common_def
 def name():
     print('MaxPool')
 
-def MaxPool(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
+
+def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
     input0 = inputs[0]
     n,c,h,w = input0.shape
     sh, sw  = strides
@@ -25,6 +26,33 @@ def MaxPool(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, a
                     max_val = np.max(patch)
                     res[bn, ch, y, x] = max_val
     return res
+
+
+def kernel_MaxPool_naive(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
+    input0 = inputs[0]
+    n,c,h,w = input0.shape
+    sh, sw  = strides
+    kh, kw  = kernel
+
+    # output feature map size
+    oh = (h-kh)//sh + 1
+    ow = (w-kw)//sw + 1
+
+    res = np.zeros((n, c, oh, ow), dtype=np.float32)
+
+    for bn in range(n):
+        for ch in range(c):
+            for y in range(oh):
+                for x in range(ow):
+                    max_val = 0
+                    for ky in range(kh):
+                        for kx in range(kw):
+                            val = input0[bn, ch, y*sh + ky, x*sw + kx]
+                            if max_val < val:
+                                max_val = val
+                    res[bn, ch, y, x] = max_val
+    return res
+
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
     if debug:
@@ -47,7 +75,8 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
     rounding_type = node['data']['rounding_type']
     auto_pad = node['data']['auto_pad']
 
-    res = MaxPool(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
+    #res = kernel_MaxPool_numpy(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
+    res = kernel_MaxPool_naive(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

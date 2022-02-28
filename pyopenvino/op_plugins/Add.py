@@ -5,12 +5,14 @@ import common_def
 def name():
     print('Add')
 
-def add(inputs:dict):
+
+def kernel_Add_numpy(inputs:dict):
     input0 = inputs[0]
     input1 = inputs[1]
     input1 = np.broadcast_to(input1, input0.shape)
     res = input0 + input1
     return res
+
 
 def compute(node:dict, inputs:dict=None, debug:bool=False):
     if debug:
@@ -26,7 +28,7 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
             print('input data shape mismatch')
             return None
 
-    res = add(inputs)
+    res = kernel_Add_numpy(inputs)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }
