@@ -1,13 +1,14 @@
 # lesser OpenVINO
 
-import enable_escape_sequence_win
-
 import sys, os
 import struct
 import pickle
 import glob
 import importlib
 import argparse
+
+if os.name == 'nt':
+    import enable_escape_sequence_win
 
 import cv2
 import numpy as np
@@ -16,6 +17,48 @@ import xml.etree.ElementTree as et
 
 import common_def
 
+
+class IECore:
+    def __init__(self):
+        # Load ops plug-ins
+        self.plugins = plugins()
+        self.plugins.load_plugins('plugins')
+
+    def read_network(self, xmlpath:str, binpath:str):
+        self.xml, self.bin = read_IR_Model(xmlpath)
+        if self.xml is None or self.bin is None:
+            print('failed to read model file')
+            return -1
+        self.layers, self.edges = parse_IR_XML(self.xml)
+        self.G = build_graph(self.layers, self.edges)
+        set_constants_to_graph(self.G, self.bin)
+        self.task_list = schedule_tasks(self.G)
+        net = CNNNetwork(self)
+        return net
+
+
+class CNNNetwork:
+    def __init__(self, iecore:IECore):
+        self.ie = iecore
+
+    def load_network(self, net:nx.DiGraph, device:str='CPU', num_infer:int=1):
+        exenet = Executable_Network(self.ie)
+        return exenet
+
+
+class Executable_Network:
+    def __init__(self, iecore:IECore):
+        self.ie = iecore
+
+    def set_iecore(self, iecore:IECore):
+        self.ie = iecore
+
+    def infer(self, inputs):
+        self.res = run_infer(inputs, self.ie.task_list, self.ie.G, self.ie.plugins)
+        return self.res
+
+
+# Display np.ndarray data for debug purpose
 def disp_result(data):
     N,C,H,W = data.shape
     for c in range(C):
@@ -26,10 +69,12 @@ def disp_result(data):
             print()
 
 
+# Class for pperator plugins handling
 class plugins:
     def __init__(self):
         self.plugins={}
 
+    # Import an ops plugin (.py)
     def import_plugin(self, plugin_path, file_path, plugin_name=None):
         path, fname = os.path.split(file_path)
         bname, ext = os.path.splitext(fname)
@@ -40,6 +85,7 @@ class plugins:
         setattr(self, plugin_name, module)
         self.plugins[plugin_name] = module
 
+    # Search ops plugins (.py) and import all
     def load_plugins(self, plugin_path:str):
         plugins = glob.glob(os.path.join(plugin_path, '**', '*.py'), recursive=True)
         for plugin in plugins:
@@ -252,7 +298,7 @@ def main():
     parser.add_argument('-m', '--model', type=str, default='mnist.xml', help='input IR model path (default=mnist.xml)')
     parser.add_argument('-i', '--input', type=str, default='mnist7.png', help='input image data path (default=mnist7.png)')
     parser.add_argument('-f', '--feat_map', type=str, help='Grand truth feature map data to compare (*.pickle)')
-    #parser.add_argument('-c', '--compare', action='store_true', help='Compare feature maps')
+    parser.add_argument('-d', '--dump', action='store_true', help='Compare feature maps')
     args = parser.parse_args()
 
     xml, bin = read_IR_Model(args.model)
@@ -294,3 +340,5 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+
+
