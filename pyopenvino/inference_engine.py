@@ -2,20 +2,43 @@
 
 import sys, os
 import struct
-import pickle
 import glob
 import importlib
-import argparse
 
+# Enable escape sequence on Windows console (for colored text)
 if os.name == 'nt':
     import enable_escape_sequence_win
 
-import cv2
-import numpy as np
 import networkx as nx
 import xml.etree.ElementTree as et
 
+sys.path.append('./pyopenvino')
 import common_def
+
+# -------------------------------------------------------------------------------------------------------
+
+# Class for operator plugins
+class plugins:
+    def __init__(self):
+        self.plugins={}
+
+    # Import an ops plugin (.py)
+    def import_plugin(self, plugin_path, file_path, plugin_name=None):
+        path, fname = os.path.split(file_path)
+        bname, ext = os.path.splitext(fname)
+        if plugin_name is None:
+            plugin_name = bname
+        plugin_path = plugin_path.replace('/', '.') # plugin path must be concatenated with '.', not '/'
+        plugin_path = plugin_path + '.' + bname
+        module = importlib.import_module(plugin_path)
+        setattr(self, plugin_name, module)
+        self.plugins[plugin_name] = module
+
+    # Search ops plugins (.py) and import all
+    def load_plugins(self, plugin_path:str):
+        plugins = glob.glob(os.path.join(plugin_path, '**', '*.py'), recursive=True)
+        for plugin in plugins:
+            self.import_plugin(plugin_path, plugin)
 
 # -------------------------------------------------------------------------------------------------------
 
@@ -23,7 +46,7 @@ class IECore:
     def __init__(self):
         # Load ops plug-ins
         self.plugins = plugins()
-        self.plugins.load_plugins('plugins')
+        self.plugins.load_plugins('pyopenvino/op_plugins')
 
     def read_network(self, xmlpath:str, binpath:str):
         net = CNNNetwork(self)
@@ -237,62 +260,3 @@ class Executable_Network:
         return res
 
 # -------------------------------------------------------------------------------------------------------
-
-# Class for operator plugins
-class plugins:
-    def __init__(self):
-        self.plugins={}
-
-    # Import an ops plugin (.py)
-    def import_plugin(self, plugin_path, file_path, plugin_name=None):
-        path, fname = os.path.split(file_path)
-        bname, ext = os.path.splitext(fname)
-        if plugin_name is None:
-            plugin_name = bname
-        plugin_path = plugin_path + '.' + bname
-        module = importlib.import_module(plugin_path)
-        setattr(self, plugin_name, module)
-        self.plugins[plugin_name] = module
-
-    # Search ops plugins (.py) and import all
-    def load_plugins(self, plugin_path:str):
-        plugins = glob.glob(os.path.join(plugin_path, '**', '*.py'), recursive=True)
-        for plugin in plugins:
-            self.import_plugin(plugin_path, plugin)
-
-
-# -------------------------------------------------------------------------------------------------------
-
-# DEBUG: Compare data for accuracy checking (with a pre-generated dict data {'node-name': np.array(featmap), ...})
-def compare_results(node_name:str, result:np.array, GT:dict):
-    if node_name not in GT:
-        print('{} : Skipped'.format(node_name))
-        return
-    GT_data = GT[node_name][2]
-    match = np.allclose(result, GT_data, rtol=0.001)
-    if match:
-        col = '\x1b[32m'
-    else:
-        col = '\x1b[31m'
-    print('{}{} : {} / {}\x1b[37m\n'.format(col, node_name, result.shape, GT_data.shape), end='')
-
-
-# DEBUG: Display np.ndarray data for debug purpose
-def disp_result(data):
-    N,C,H,W = data.shape
-    for c in range(C):
-        print('C=', c)
-        for h in range(H):
-            for w in range(W):
-                print('{:6.3f},'.format(data[0,c,h,w]), end='')
-            print()
-
-
-# DEBUG: Dump network graph for debug purpose
-def dump_graph(G:nx.DiGraph):
-    for node_id, node_contents in G.nodes.items():
-        print('node id=', node_id)
-        print_dict(node_contents)
-    for edge_id, edge_contents in G.edges.items():
-        print('edge_id=', edge_id)
-        print(' '*2, edge_contents)
