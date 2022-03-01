@@ -47,9 +47,9 @@ pyopenvino>python test_pyopenvino.py
 ```sh
 python draw-and-infer.py
 ```
-#### How to Operate
-- Left click to draw points.
-- Right click to clear the canvas.
+#### How to Operate  
+- Left click to draw points.  
+- Right click to clear the canvas.  
 This demo program is using 'numpy' kernels for performance.  
 ![draw-and-infer](resources/draw_and_infer.png)
 ----------------------------------
