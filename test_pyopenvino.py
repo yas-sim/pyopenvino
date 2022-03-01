@@ -22,11 +22,13 @@ atime = 0
 nitr = 1
 for i in range(nitr):
     stime = time.time()
-    res = exenet.infer({'conv2d_input':inblob})
+    res = exenet.infer({'conv2d_input':inblob}, verbose=False)
     etime = time.time()
     atime += etime-stime
 
 print(atime/nitr, 'sec/inf')
 
-m = np.argsort(res['Func/StatefulPartitionedCall/output/_11:0'][0])[::-1]
+#m = np.argsort(res['Func/StatefulPartitionedCall/output/_11:0'][0])[::-1]
+m = np.argsort(res['Func/StatefulPartitionedCall/output/_23:0'][0])[::-1]
 print(m, res)
+

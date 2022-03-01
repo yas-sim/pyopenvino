@@ -21,7 +21,7 @@ def main():
 	train_labels_v = utils.to_categorical(train_labels, 10)
 	test_labels_v  = utils.to_categorical(test_labels , 10)
 
-	# Build MNIST CNN model
+	# Build MNIST CNN model (simple, without BN)
 	model = models.Sequential([
 		layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
 		layers.MaxPooling2D((2, 2)),
@@ -32,6 +32,25 @@ def main():
 		layers.Dense(64, activation='relu'),
 		layers.Dense(10, activation='softmax')
 	])
+	'''
+	# Build MNIST CNN model (with BN)
+	model = models.Sequential([
+		layers.Conv2D(64, (3, 3), activation='relu', padding='same', input_shape=(28, 28, 1)),
+		layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+		layers.MaxPooling2D((2, 2)),
+		layers.BatchNormalization(),
+
+		layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+		layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+		layers.MaxPooling2D((2, 2)),
+		layers.BatchNormalization(),
+
+		layers.Flatten(),
+		layers.Dense(512, activation='relu'),
+		layers.Dense(128, activation='relu'),
+		layers.Dense(10, activation='softmax')
+	])
+	'''
 
 	# Compiling the model
 	model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['acc'])

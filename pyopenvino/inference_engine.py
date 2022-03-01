@@ -22,7 +22,7 @@ class plugins:
         self.plugins={}
 
     # Import an ops plugin (.py)
-    def import_plugin(self, plugin_path, file_path, plugin_name=None):
+    def import_plugin(self, plugin_path:str, file_path:str, plugin_name:str=None):
         path, fname = os.path.split(file_path)
         bname, ext = os.path.splitext(fname)
         if plugin_name is None:
@@ -48,7 +48,7 @@ class IECore:
         self.plugins.load_plugins('pyopenvino/op_plugins')
 
     def read_network(self, xmlpath:str, binpath:str):
-        net = CNNNetwork(self)
+        net = IENetwork(self)
         net.read_IR_Model(xmlpath)
         if net.xml is None or net.bin is None:
             print('failed to read model file')
@@ -61,7 +61,7 @@ class IECore:
 
 # -------------------------------------------------------------------------------------------------------
 
-class CNNNetwork:
+class IENetwork:
     def __init__(self, iecore:IECore):
         self.ie = iecore
         self.xml = None
@@ -168,7 +168,7 @@ class CNNNetwork:
             node['const'] = { 'data':decoded_data, 'element_info':precision, 'size':size, 'decode_info':common_def.format_config[precision] }
 
     # Find a node from DiGraph
-    def find_node_by_type(self, type:str):
+    def find_node_by_type(self, type:str) -> list:
         results = []
         for node in self.G.nodes():
             if self.G.nodes[node]['type'] == type:
@@ -183,8 +183,8 @@ class CNNNetwork:
 # -------------------------------------------------------------------------------------------------------
 
 class Executable_Network:
-    def __init__(self, cnnnetwork:CNNNetwork):
-        self.cnnnet = cnnnetwork
+    def __init__(self, ienetwork:IENetwork):
+        self.ienet = ienetwork
 
     def schedule_tasks(self):
         def search_predecessors(G, node_ids, task_list:list):
@@ -193,19 +193,19 @@ class Executable_Network:
                 search_predecessors(G, predecessors, task_list)
                 if node_id not in task_list:
                     task_list.append(node_id)
-        outputs = self.cnnnet.find_node_by_type('Result')
+        outputs = self.ienet.find_node_by_type('Result')
         self.task_list = []
         outputs = [ key for key,_ in outputs]
-        search_predecessors(self.cnnnet.G, outputs, self.task_list)
+        search_predecessors(self.ienet.G, outputs, self.task_list)
 
     # Gather and prepare the input data which needed to run a task
-    def prepare_inputs_for_task(self, task:str):
-        predecessors = list(self.cnnnet.G.pred[task])
+    def prepare_inputs_for_task(self, task:str) -> dict:
+        predecessors = list(self.ienet.G.pred[task])
         inputs = {}
         for predecessor in predecessors:
-            edge = self.cnnnet.G.edges[(predecessor, task)]  # edge = { 'connection':(from-layer, from-port, to-layer, to-port)}
+            edge = self.ienet.G.edges[(predecessor, task)]  # edge = { 'connection':(from-layer, from-port, to-layer, to-port)}
             connection = edge['connection']
-            source_node = self.cnnnet.G.nodes[connection[0]]
+            source_node = self.ienet.G.nodes[connection[0]]
             source_port = connection[1]
             data = source_node['output'][source_port]['data']
             sink_port = connection[3]
@@ -213,9 +213,9 @@ class Executable_Network:
         return inputs
 
     # Run tasks in the order specified in the task_list
-    def run_tasks(self):
-        G = self.cnnnet.G
-        p = self.cnnnet.ie.plugins
+    def run_tasks(self, verbose:bool=False):
+        G = self.ienet.G
+        p = self.ienet.ie.plugins
         for task in self.task_list:      # task_list = [ 0, 1, 2, ... ]  Numbers are the node_id
             node = G.nodes[task]
             node_type = node['type']
@@ -224,6 +224,11 @@ class Executable_Network:
             if 'input' in node:     # Prepare input data for computation
                 inputs = self.prepare_inputs_for_task(task)
 
+            if verbose:
+                print(node_name, node_type)
+            if node_type not in p.plugins:
+                print('ERROR: Operation \'{}\' is not supported.'.format(node_name))
+                sys.exit(-1)
             res = p.plugins[node_type].compute(node, inputs, debug=False)  # Run a task (op)
 
             # Set computation result to output ports
@@ -239,17 +244,17 @@ class Executable_Network:
                     #    #    disp_result(data)
 
     # Run inference
-    def infer(self, inputs:dict):
-        G = self.cnnnet.G
+    def infer(self, inputs:dict, verbose:bool=False) -> dict:
+        G = self.ienet.G
         # Set input data for inference
         for node_name, val in inputs.items():
             for node in G.nodes:
                 if G.nodes[node]['name'] == node_name:
                     G.nodes[node]['param'] = val
 
-        self.run_tasks()
+        self.run_tasks(verbose)
 
-        outputs = self.cnnnet.find_node_by_type('Result')
+        outputs = self.ienet.find_node_by_type('Result')
         res = {}
         for output in outputs:
             node_id = output[0]

@@ -9,7 +9,7 @@ type_convert_tbl = { 'f32':np.float32, 'f16':np.float16, 'i64':np.int64, 'i32':n
                     'FP32':np.float32, 'FP16':np.float16, 'I64':np.int64 }
 
 
-def string_to_tuple(string:str):
+def string_to_tuple(string:str) -> tuple:
     tmp_list = [ int(item) for item in string.split(',') ]
     return tuple(tmp_list)
 
