@@ -200,6 +200,7 @@ class IENetwork:
 class Executable_Network:
     def __init__(self, ienetwork:IENetwork):
         self.ienet = ienetwork
+        self.kernel_type = 'naive'      # 'naive' or 'numpy'
 
     def schedule_tasks(self):
         def search_predecessors(G, node_ids, task_list:list):
@@ -245,7 +246,7 @@ class Executable_Network:
             if verbose:
                 print(node_name, node_type, end='')
             stime = time.time()
-            res = p.plugins[node_type].compute(node, inputs, debug=False)  # Run a task (op)
+            res = p.plugins[node_type].compute(node, inputs, kernel_type=self.kernel_type, debug=False)  # Run a task (op)
             etime = time.time()
             if verbose:
                 print(',', etime-stime)
@@ -262,7 +263,7 @@ class Executable_Network:
                     #    #if 'StatefulPartitionedCall/sequential/conv2d/Conv2D' == node_name:
                     #    #    disp_result(data)
 
-    # Run inference
+    # OpenVINO IE compatible API - Run inference
     def infer(self, inputs:dict, verbose:bool=False) -> dict:
         G = self.ienet.G
         # Set input data for inference
@@ -277,7 +278,7 @@ class Executable_Network:
         self.run_tasks(verbose)
         etime = time.time()
         if verbose:
-            print('Total_time,', etime-stime)
+            print('@TOTAL_TIME,', etime-stime)
 
         outputs = self.ienet.find_node_by_type('Result')
         res = {}

@@ -20,7 +20,7 @@ def kernel_ReLU_naive(inputs:dict):
     return output.reshape(inputs[0].shape)
 
 
-def compute(node:dict, inputs:dict=None, debug:bool=False):
+def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
         print(node)
 
@@ -34,8 +34,10 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
             print('input data shape mismatch')
             return None
 
-    #res = kernel_ReLU_numpy(inputs)
-    res = kernel_ReLU_naive(inputs)
+    if kernel_type == 'numpy':
+        res = kernel_ReLU_numpy(inputs)
+    else:
+        res = kernel_ReLU_naive(inputs)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

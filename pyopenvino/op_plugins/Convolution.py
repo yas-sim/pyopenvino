@@ -66,7 +66,7 @@ def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     return output
 
 
-def compute(node:dict, inputs:dict=None, debug:bool=False):
+def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
         print(node)
 
@@ -85,8 +85,11 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
     pads_end = common_def.string_to_tuple(node['data']['pads_end'])
     auto_pad = True if node['data']['auto_pad']=='valid' else False
 
-    #res = kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
-    res = kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
+    print(kernel_type)
+    if kernel_type == 'numpy':
+        res = kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
+    else:
+        res = kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

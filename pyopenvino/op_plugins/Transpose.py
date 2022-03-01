@@ -13,7 +13,7 @@ def kernel_Transpose_numpy(inputs):
     return res
 
 
-def compute(node:dict, inputs:dict=None, debug:bool=False):
+def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
         print(node)
 

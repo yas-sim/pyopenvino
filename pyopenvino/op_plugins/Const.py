@@ -5,7 +5,7 @@ import numpy as np
 def name():
     print('Const')
 
-def compute(node:dict, inputs:dict=None, debug:bool=False):
+def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
         print(node)
     shape = node['data']['shape']

@@ -25,7 +25,7 @@ def kernel_SoftMax_naive(inputs):
     return output
 
 
-def compute(node:dict, inputs:dict=None, debug:bool=False):
+def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
         print(node)
 
@@ -39,8 +39,10 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
             print('input data shape mismatch')
             return None
 
-    #res = kernel_SoftMax_numpy(inputs)
-    res = kernel_SoftMax_naive(inputs)
+    if kernel_type == 'numpy':
+        res = kernel_SoftMax_numpy(inputs)
+    else:
+        res = kernel_SoftMax_naive(inputs)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

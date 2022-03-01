@@ -42,7 +42,7 @@ def kernel_MatMul_naive(inputs, data):
     return output
 
 
-def compute(node:dict, inputs:dict=None, debug:bool=False):
+def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
         print(node)
 
@@ -57,8 +57,10 @@ def compute(node:dict, inputs:dict=None, debug:bool=False):
             return None
     data = node['data']
 
-    #res = kernel_MatMul_numpy(inputs, data)
-    res = kernel_MatMul_naive(inputs, data)
+    if kernel_type == 'numpy':
+        res = kernel_MatMul_numpy(inputs, data)
+    else:
+        res = kernel_MatMul_naive(inputs, data)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }
