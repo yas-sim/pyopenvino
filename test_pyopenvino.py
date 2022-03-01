@@ -28,7 +28,6 @@ for i in range(nitr):
 
 print(atime/nitr, 'sec/inf')
 
-#m = np.argsort(res['Func/StatefulPartitionedCall/output/_11:0'][0])[::-1]
-m = np.argsort(res['Func/StatefulPartitionedCall/output/_23:0'][0])[::-1]
+m = np.argsort(res['Func/StatefulPartitionedCall/output/_11:0'][0])[::-1]
 print(m, res)
 
