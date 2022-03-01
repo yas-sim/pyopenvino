@@ -88,10 +88,10 @@ edge_id= (0, 2)
 ### Ops plugins
 Operators are implemented as plugin. You can develop an Op in Python and place the file in the `op_plugins` directory. The inference_engine of pyOpenVINO will search the Python source files in the `op_plugins` directory at the start time and register them as the Ops plugin.  
 The file name of the Ops plugin will be treated as the Op name, so it must match the `layer type` attribute field in the IR XML file.  
-The inference engine will call `compute()` function of the plugin to perform calculation.  The `compute()` function is the only API between the inference engine and the plugin. The inference engine will collect the required input data and pass it to the `compute()` function. The input data is in a form of Python `dict`. (`{port_num:data[, port_num:data]}`)  
-The op needs to calculate the result from the input data and return it as a Python `dict`. (`{port_num:result[, port_num:result]}`)  
+The inference engine will call `compute()` function of the plugin to perform calculation.  The `compute()` function is the only API between the inference engine and the plugin. The inference engine will collect the required input data and pass it to the `compute()` function. The input data is in a form of Python `dict`. (`{port_num:data[, port_num:data[, ...]]}`)  
+The op needs to calculate the result from the input data and return it as a Python `dict`. (`{port_num:result[, port_num:result[, ...]]}`)  
 
 ### Numpy version and Naive version  
-Not all but some Ops have dual kernel implementation, a naive implementation and a numpy version (a bit faster) implementation.  
+Not all but some Ops have dual kernel implementation, a naive implementation (easy to read) and a numpy version (a bit faster) implementation.  
 
 END
