@@ -91,7 +91,9 @@ The file name of the Ops plugin will be treated as the Op name, so it must match
 The inference engine will call `compute()` function of the plugin to perform calculation.  The `compute()` function is the only API between the inference engine and the plugin. The inference engine will collect the required input data and pass it to the `compute()` function. The input data is in a form of Python `dict`. (`{port_num:data[, port_num:data[, ...]]}`)  
 The op needs to calculate the result from the input data and return it as a Python `dict`. (`{port_num:result[, port_num:result[, ...]]}`)  
 
-### Numpy version and Naive version  
+### Kernel implementation: NumPy version and Naive version  
 Not all but some Ops have dual kernel implementation, a naive implementation (easy to read) and a numpy version (a bit faster) implementation.  
+The numpy version might be x10+ faster than the naive version.  
+You need to modify the Op plugin code manually to switch the kernels (default=naive).  
 
 END
