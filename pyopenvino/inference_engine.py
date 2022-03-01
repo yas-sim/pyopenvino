@@ -60,7 +60,7 @@ class IECore:
         net.parse_IR_XML()
         net.build_graph()
         net.set_constants_to_graph()
-        common_def.dump_graph(net.G)
+        # common_def.dump_graph(net.G)  #DEBUG
         return net
 
 # -------------------------------------------------------------------------------------------------------
