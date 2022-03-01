@@ -94,6 +94,6 @@ The op needs to calculate the result from the input data and return it as a Pyth
 ### Kernel implementation: NumPy version and Naive version  
 Not all, but some Ops have dual kernel implementation, a naive implementation (easy to read), and a NumPy version implementation (a bit faster).  
 The NumPy version might be x10+ faster than the naive version.  
-You need to manually modify the Op plugin code to switch the kernels (default=naive).  
+The kernel type can be specified with `Executable_Network.kernel_type` attribute. You can specify eitgher one of `'naive'` (default) or `'numpy'`. Please refer to the sample program `test_pyopenvino.py` for the details.  
 
 END

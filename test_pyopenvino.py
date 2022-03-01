@@ -24,7 +24,7 @@ cv2.destroyAllWindows()
 
 atime = 0
 nitr = 1
-exenet.kernel_type = 'numpy'    # Set kernel implementation type ('naive' or 'numpy')
+exenet.kernel_type = 'naive'    # Set kernel implementation type ('naive' or 'numpy')
 for i in range(nitr):
     stime = time.time()
     res = exenet.infer({'conv2d_input':inblob}, verbose=True)
