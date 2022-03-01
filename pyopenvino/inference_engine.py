@@ -9,10 +9,6 @@ import importlib
 
 sys.path.append('./pyopenvino')
 
-# Enable escape sequence on Windows console (for colored text)
-if os.name == 'nt':
-    import enable_escape_sequence_win
-
 import networkx as nx
 import xml.etree.ElementTree as et
 
