@@ -49,7 +49,7 @@ def main():
 	cv2.setMouseCallback(win_name, onMouse, param=None)
 	cv2.imshow(win_name, frame)
 
-	exec_net.kernel_type = 'numpy'
+	exec_net.kernel_type = 'special'  # Options: 'naive', 'numpy', 'special' (im2col)
 	while(cv2.waitKey(100)!=27):   # 27==ESC key
 		# Image preprocess - shrink and convert to single channel image (monochrome)
 		shrank_img = cv2.resize(frame, (28, 28))   # 28x28

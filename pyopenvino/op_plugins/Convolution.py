@@ -15,6 +15,48 @@ def disp_result(data):
                 print('{:6.3f},'.format(data[0,c,h,w]), end='')
             print()
 
+# ---------------------------------------------------------------------------------------
+
+# Referred from 'deep-learning-from-scratch' project
+# https://github.com/oreilly-japan/deep-learning-from-scratch
+
+def im2col(input, kh, kw, strides, pads_begin, pads_end):
+    n, c, h, w = input.shape
+    oh = (h + pads_begin[0] + pads_end[0] - kh)//strides[0] + 1
+    ow = (w + pads_begin[1] + pads_end[1] - kw)//strides[1] + 1
+
+    img = np.pad(input, [(0,0), (0,0), (pads_begin[1], pads_begin[0]), (pads_end[1], pads_end[0])], 'constant')
+    col = np.zeros((n, c, kh, kw, oh, ow), dtype=np.float32)
+
+    for y in range(kh):
+        y_max = y + strides[0]*oh
+        for x in range(kw):
+            x_max = x + strides[1]*ow
+            col[:, :, y, x, :, :] = img[:, :, y:y_max:strides[0], x:x_max:strides[1]]
+
+    col = col.transpose(0, 4, 5, 1, 2, 3).reshape(n*oh*ow, -1)
+    return col
+
+def kernel_conv2d_im2col(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
+    input          = inputs[0]
+    kernel         = inputs[1]
+    n, c, h, w     = input.shape   # Input image
+    kn, kc, kh, kw = kernel.shape  # Kernel
+    sh, sw         = strides
+    pb0, pb1       = pads_begin
+    pe0, pe1       = pads_end
+
+    # output feature map size
+    oh = (h+pb0+pe0-kh)//sh + 1
+    ow = (w+pb1+pb1-kw)//sw + 1
+
+    col = im2col(input, kh, kw, strides, pads_begin, pads_end)
+    col_W = kernel.reshape(kn, -1).T
+    output = np.dot(col, col_W)
+    output = output.reshape(n, oh, ow, -1).transpose(0, 3, 1, 2)
+    return output
+
+# ---------------------------------------------------------------------------------------
 
 def kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
     input          = inputs[0]
@@ -37,6 +79,7 @@ def kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pa
                 output[0, fc, dy+pb1, dx+pb0] = np.sum(patch*kernel[fc])
     return output
 
+# ---------------------------------------------------------------------------------------
 
 def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
     input          = inputs[0]
@@ -64,6 +107,7 @@ def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pa
                             output[0, fc, dy+pb1, dx+pb0] += flt * dt
     return output
 
+# ---------------------------------------------------------------------------------------
 
 def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
@@ -84,10 +128,12 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
     pads_end = common_def.string_to_tuple(node['data']['pads_end'])
     auto_pad = True if node['data']['auto_pad']=='valid' else False
 
-    if kernel_type == 'numpy':
-        res = kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
-    else:
+    if kernel_type == 'naive':
         res = kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
+    elif kernel_type == 'special':
+        res = kernel_conv2d_im2col(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
+    else:
+        res = kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

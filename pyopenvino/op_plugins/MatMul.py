@@ -57,10 +57,10 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
             return None
     data = node['data']
 
-    if kernel_type == 'numpy':
-        res = kernel_MatMul_numpy(inputs, data)
-    else:
+    if kernel_type == 'naive':
         res = kernel_MatMul_naive(inputs, data)
+    else:
+        res = kernel_MatMul_numpy(inputs, data)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

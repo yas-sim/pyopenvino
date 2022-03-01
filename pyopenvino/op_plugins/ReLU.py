@@ -34,10 +34,10 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
             print('input data shape mismatch')
             return None
 
-    if kernel_type == 'numpy':
-        res = kernel_ReLU_numpy(inputs)
-    else:
+    if kernel_type == 'naive':
         res = kernel_ReLU_naive(inputs)
+    else:
+        res = kernel_ReLU_numpy(inputs)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }

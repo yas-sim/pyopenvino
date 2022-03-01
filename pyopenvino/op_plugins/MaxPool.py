@@ -75,10 +75,10 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
     rounding_type = node['data']['rounding_type']
     auto_pad = node['data']['auto_pad']
 
-    if kernel_type == 'numpy':
-        res = kernel_MaxPool_numpy(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
-    else:
+    if kernel_type == 'naive':
         res = kernel_MaxPool_naive(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
+    else:
+        res = kernel_MaxPool_numpy(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }
