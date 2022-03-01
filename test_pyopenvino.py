@@ -1,4 +1,4 @@
-# lesser-openvino.py test program :-)
+# pyOpenVINO test program :-)
 
 import cv2
 import numpy as np
