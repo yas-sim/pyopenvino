@@ -85,7 +85,6 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
     pads_end = common_def.string_to_tuple(node['data']['pads_end'])
     auto_pad = True if node['data']['auto_pad']=='valid' else False
 
-    print(kernel_type)
     if kernel_type == 'numpy':
         res = kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
     else:
