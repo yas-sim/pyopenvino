@@ -7,7 +7,7 @@ from pyopenvino.inference_engine import IECore
 import time
 
 ie = IECore()
-net = ie.read_network('models/mnist_bn.xml', 'models/mnist_bn.bin')
+net = ie.read_network('models/mnist.xml', 'models/mnist.bin')
 print('inputs:', net.inputs)
 print('outputs:', net.outputs)
 output_node_name = net.outputs[0]['name']
