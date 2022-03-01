@@ -47,10 +47,11 @@ pyopenvino>python test_pyopenvino.py
 ## A Littile Description of the Implementation  
 
 ### IR model internal representation
-This inference engine is using `networkx` as the internal representation of the IR model.
+This inference engine is using `networkx.DiGraph` as the internal representation of the IR model.
 IR model will be translated into `node`s and `edge`s.  
-The nodes represents the `ops` and the node holds the attributes of the ops (e.g. strides, dilates, etc).  
-The edges represents the connection between the nodes. The edges holds the port number for both ends. Also, the edge holds the output data from the source nodes (ops).
+The nodes represents the `ops` and it holds the attributes of the ops (e.g. strides, dilations, etc).  
+The edges represents the connection between the nodes. The edges holds the port number for both ends. 
+The intermediate output from the nodes (feature maps) will be stored in the `data` attributes in the `output` port of the node (`G.nodes[node_id_num]['output'][port_num]['data'] = feat_map`)  
 
 ### An example of the contents (attributes) of a node  
 ```sh
