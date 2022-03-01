@@ -7,7 +7,7 @@ from pyopenvino.inference_engine import IECore
 import time
 
 ie = IECore()
-net = ie.read_network('models/mnist.xml', 'models/mnist.bin')
+net = ie.read_network('models/mnist_bn.xml', 'models/mnist_bn.bin')
 print('inputs:', net.inputs)
 print('outputs:', net.outputs)
 output_node_name = net.outputs[0]['name']
@@ -24,7 +24,7 @@ cv2.destroyAllWindows()
 
 atime = 0
 nitr = 1
-exenet.kernel_type = 'special'    # Set kernel implementation type ('naive', 'numpy' or 'special')
+exenet.kernel_type = 'numpy'    # Set kernel implementation type ('naive', 'numpy' or 'special')
 for i in range(nitr):
     stime = time.time()
     res = exenet.infer({'conv2d_input':inblob}, verbose=True)
