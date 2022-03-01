@@ -30,7 +30,6 @@ def kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     ow = (w-kw)//sw + 1
 
     output = np.zeros((n, kn, oh+pb1+pe1, ow+pb0+pe0), dtype=np.float32)
-
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
             for dx in range(ow):

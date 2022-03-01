@@ -244,7 +244,7 @@ class Executable_Network:
                 print('ERROR: Operation \'{}\' is not supported.'.format(node_name))
                 sys.exit(-1)
             if verbose:
-                print(node_name, node_type, end='')
+                print(node_name, node_type, end='', flush=True)
             stime = time.time()
             res = p.plugins[node_type].compute(node, inputs, kernel_type=self.kernel_type, debug=False)  # Run a task (op)
             etime = time.time()
