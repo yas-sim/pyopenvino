@@ -47,10 +47,42 @@ pyopenvino>python test_pyopenvino.py
 ## A Littile Description of the Implementation  
 
 ### IR model internal representation
-Inference engine is using `networkx` as the internal representation of the IR model.
+This inference engine is using `networkx` as the internal representation of the IR model.
 IR model will be translated into `node`s and `edge`s.  
 The nodes represents the `ops` and the node holds the attributes of the ops (e.g. strides, dilates, etc).  
 The edges represents the connection between the nodes. The edges holds the port number for both ends. Also, the edge holds the output data from the source nodes (ops).
+
+### An example of the contents (attributes) of a node  
+```sh
+node id= 14
+ name : StatefulPartitionedCall/sequential/target_conv_layer/Conv2D
+ type : Convolution
+ version : opset1
+ data :
+     auto_pad : valid
+     dilations : 1, 1
+     pads_begin : 0, 0
+     pads_end : 0, 0
+     strides : 1, 1
+ input :
+     0 :
+         precision : FP32
+         dims : (1, 64, 5, 5)
+     1 :
+         precision : FP32
+         dims : (64, 64, 3, 3)
+ output :
+     2 :
+         precision : FP32
+         dims : (1, 64, 3, 3)
+```
+
+### An example of the contents of a edge  
+format = (from-layer, from-port, to-layer, to-port)
+```sh
+edge_id= (0, 2)
+   {'connection': (0, 0, 2, 0)}
+```
 
 ### Ops plugins
 Operators are implemented as plugin. You can develop an Op in Python and place the file in the `op_plugins` directory. The inference_engine of pyOpenVINO will search the Python source files in the `op_plugins` directory at the start time and register them as the Ops plugin.  

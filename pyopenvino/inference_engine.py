@@ -58,8 +58,9 @@ class IECore:
             print('failed to read model file')
             return -1
         net.parse_IR_XML()
-        self.G = net.build_graph()
+        net.build_graph()
         net.set_constants_to_graph()
+        common_def.dump_graph(net.G)
         return net
 
 # -------------------------------------------------------------------------------------------------------
