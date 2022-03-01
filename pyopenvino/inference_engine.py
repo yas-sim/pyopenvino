@@ -56,9 +56,10 @@ class IECore:
             node_list.append(node_attr)
         return node_list
 
-    def read_network(self, xmlpath:str, binpath:str):
+    # OpenVINO Inference Engine API
+    def read_network(self, model:str, weights:str):
         net = IENetwork(self)
-        net.read_IR_Model(xmlpath)
+        net.read_IR_Model(model)
         if net.xml is None or net.bin is None:
             print('failed to read model file')
             return -1
@@ -69,6 +70,12 @@ class IECore:
         net.outputs = self.construct_node_info(net, 'Result') 
         # common_def.dump_graph(net.G)  #DEBUG
         return net
+
+    # OpenVINO Inference Engine API
+    def load_network(self, network, device_name:str='CPU', num_requests:int=1):
+        exenet = Executable_Network(network)
+        exenet.schedule_tasks()
+        return exenet
 
 # -------------------------------------------------------------------------------------------------------
 
@@ -188,12 +195,6 @@ class IENetwork:
             if self.G.nodes[node]['type'] == type:
                 results.append((node, self.G.nodes[node]['name']))
         return results
-
-    # OpenVINO Inference Engine API
-    def load_network(self, net:nx.DiGraph, device:str='CPU', num_infer:int=1):
-        exenet = Executable_Network(self)
-        exenet.schedule_tasks()
-        return exenet
 
 # -------------------------------------------------------------------------------------------------------
 

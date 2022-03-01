@@ -11,7 +11,7 @@ net = ie.read_network('models/mnist.xml', 'models/mnist.bin')
 print('inputs:', net.inputs)
 print('outputs:', net.outputs)
 output_node_name = net.outputs[0]['name']
-exenet = net.load_network(net, 'CPU')
+exenet = ie.load_network(net, 'CPU')
 
 cv2img = cv2.imread('resources/mnist2.png')
 inblob = cv2.split(cv2img)[0]
