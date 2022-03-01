@@ -15,7 +15,7 @@ Supported API is quite limited, but it mimics OpenVINO IE Python API. So, you ca
 
 ## How to run
 
-Step 1 and 2 are optional since the converted MNIST IR model is provided.  
+Steps 1 and 2 are optional since the converted MNIST IR model is provided.  
 
 1. (Optional) Train a model and generate a '`saved_model`' with TensorFlow  
 ```sh
