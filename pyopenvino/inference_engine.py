@@ -7,12 +7,12 @@ import sys, os
 import struct
 import glob
 import importlib
-
-sys.path.append('./pyopenvino')
+import time
 
 import networkx as nx
 import xml.etree.ElementTree as et
 
+sys.path.append('./pyopenvino')
 import common_def
 
 # -------------------------------------------------------------------------------------------------------
@@ -239,12 +239,16 @@ class Executable_Network:
             if 'input' in node:     # Prepare input data for computation
                 inputs = self.prepare_inputs_for_task(task)
 
-            if verbose:
-                print(node_name, node_type)
             if node_type not in p.plugins:
                 print('ERROR: Operation \'{}\' is not supported.'.format(node_name))
                 sys.exit(-1)
+            if verbose:
+                print(node_name, node_type, end='')
+            stime = time.time()
             res = p.plugins[node_type].compute(node, inputs, debug=False)  # Run a task (op)
+            etime = time.time()
+            if verbose:
+                print(',', etime-stime)
 
             # Set computation result to output ports
             if len(res)>0:
@@ -267,7 +271,13 @@ class Executable_Network:
                 if G.nodes[node]['name'] == node_name:
                     G.nodes[node]['param'] = val
 
+        if verbose:
+            print('# node_name, time (sec)')
+        stime = time.time()
         self.run_tasks(verbose)
+        etime = time.time()
+        if verbose:
+            print('Total_time,', etime-stime)
 
         outputs = self.ienet.find_node_by_type('Result')
         res = {}

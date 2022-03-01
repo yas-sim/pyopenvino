@@ -9,7 +9,7 @@ import time
 ie = IECore()
 net = ie.read_network('models/mnist.xml', 'models/mnist.bin')
 print('inputs:', net.inputs)
-print('outputs', net.outputs)
+print('outputs:', net.outputs)
 exenet = net.load_network(net, 'CPU')
 
 cv2img = cv2.imread('resources/mnist2.png')
