@@ -8,6 +8,8 @@ import time
 
 ie = IECore()
 net = ie.read_network('models/mnist.xml', 'models/mnist.bin')
+print('inputs:', net.inputs)
+print('outputs', net.outputs)
 exenet = net.load_network(net, 'CPU')
 
 cv2img = cv2.imread('resources/mnist2.png')
@@ -22,7 +24,7 @@ atime = 0
 nitr = 1
 for i in range(nitr):
     stime = time.time()
-    res = exenet.infer({'conv2d_input':inblob}, verbose=False)
+    res = exenet.infer({'conv2d_input':inblob}, verbose=True)
     etime = time.time()
     atime += etime-stime
 

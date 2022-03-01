@@ -2,6 +2,7 @@
 #
 # Full-Python OpenVINO-alike inference engine implementation
 
+from re import A
 import sys, os
 import struct
 import glob
@@ -47,6 +48,14 @@ class IECore:
         self.plugins = plugins()
         self.plugins.load_plugins('pyopenvino/op_plugins')
 
+    def construct_node_info(self, net, node_type:str) -> list:
+        node_list = []
+        nodes = net.find_node_by_type(node_type)  # [(node_id, node_name), (node_id, node_name)]
+        for node_id, node_name in nodes:
+            node_attr = net.G.nodes[node_id]
+            node_list.append(node_attr)
+        return node_list
+
     def read_network(self, xmlpath:str, binpath:str):
         net = IENetwork(self)
         net.read_IR_Model(xmlpath)
@@ -56,6 +65,8 @@ class IECore:
         net.parse_IR_XML()
         net.build_graph()
         net.set_constants_to_graph()
+        net.inputs = self.construct_node_info(net, 'Parameter')  # find input nodes
+        net.outputs = self.construct_node_info(net, 'Result') 
         # common_def.dump_graph(net.G)  #DEBUG
         return net
 
@@ -66,8 +77,11 @@ class IENetwork:
         self.ie = iecore
         self.xml = None
         self.bin = None
+        self.G = None    # networkx.DiGraph
         self.layers = None
         self.edges = None
+        self.inputs = None
+        self.outputs = None
 
     def read_IR_Model(self, model):
         bname, ext = os.path.splitext(model)
@@ -175,6 +189,7 @@ class IENetwork:
                 results.append((node, self.G.nodes[node]['name']))
         return results
 
+    # OpenVINO Inference Engine API
     def load_network(self, net:nx.DiGraph, device:str='CPU', num_infer:int=1):
         exenet = Executable_Network(self)
         exenet.schedule_tasks()
