@@ -119,12 +119,9 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
     # Validate input data
     for port, data in inputs.items():
         input_port = node['input'][port]
-        if data.dtype != common_def.type_convert_tbl[input_port['precision']]:
-            print('input data precision mismatch')
-            return None
-        if data.shape != input_port['dims']:
-            print('input data shape mismatch')
-            return None
+        assert data.dtype == common_def.type_convert_tbl[input_port['precision']]
+        assert data.shape == input_port['dims']
+
     strides =  common_def.string_to_tuple(node['data']['strides'])
     dilation = common_def.string_to_tuple(node['data']['dilations'])
     pads_begin = common_def.string_to_tuple(node['data']['pads_begin'])

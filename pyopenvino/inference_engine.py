@@ -169,9 +169,7 @@ class IENetwork:
         for edge in self.edges:  # edge = (from-layer,from-port, to-layer, to-port)
             self.G.add_edge(edge[0], edge[2])
             self.G.edges[(edge[0], edge[2])]['connection'] = edge
-        if not nx.is_directed_acyclic_graph(self.G):
-            print('Graph is not an directed acyclic graph')
-            return
+        assert nx.is_directed_acyclic_graph(self.G) # Graph is not an directed acyclic graph
 
     # Set 'Const' data from '.bin' file data
     # Cut out binary weight/bias/constant data, decode it, and store the result to the DiGraph nodes
