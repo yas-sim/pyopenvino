@@ -68,15 +68,17 @@ def kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     pe0, pe1       = pads_end
 
     # output feature map size
-    oh = (h-kh)//sh + 1
-    ow = (w-kw)//sw + 1
+    oh = (h-kh+pb0+pe0)//sh + 1
+    ow = (w-kw+pb1+pe1)//sw + 1
 
-    output = np.zeros((n, kn, oh+pb1+pe1, ow+pb0+pe0), dtype=np.float32)
+    input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
+    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
+
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
             for dx in range(ow):
                 patch = input[0, :, dy*sh:dy*sh+kh, dx*sw:dx*sw+kw]
-                output[0, fc, dy+pb1, dx+pb0] = np.sum(patch*kernel[fc])
+                output[0, fc, dy, dx] = np.sum(patch*kernel[fc])
     return output
 
 # ---------------------------------------------------------------------------------------
@@ -91,10 +93,11 @@ def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     pe0, pe1       = pads_end
 
     # output feature map size
-    oh = (h-kh)//sh + 1
-    ow = (w-kw)//sw + 1
+    oh = (h-kh+pb0+pe0)//sh + 1
+    ow = (w-kw+pb1+pe1)//sw + 1
 
-    output = np.zeros((n, kn, oh+pb1+pe1, ow+pb0+pe0), dtype=np.float32)
+    input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
+    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
 
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
@@ -104,7 +107,7 @@ def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pa
                         for fx in range(kw):
                             flt = kernel[fc, cc, fy, fx]
                             dt  = input[0, cc, dy*sh+fy, dx*sw+fx]
-                            output[0, fc, dy+pb1, dx+pb0] += flt * dt
+                            output[0, fc, dy, dx] += flt * dt
     return output
 
 # ---------------------------------------------------------------------------------------

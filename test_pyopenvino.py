@@ -1,13 +1,15 @@
 # pyOpenVINO test program :-)
 
+import time
+
 import cv2
 import numpy as np
 from pyopenvino.inference_engine import IECore
 
-import time
+model = 'models/mnist'
 
 ie = IECore()
-net = ie.read_network('models/mnist.xml', 'models/mnist.bin')
+net = ie.read_network(model+'.xml', model+'.bin')
 print('inputs:', net.inputs)
 print('outputs:', net.outputs)
 output_node_name = net.outputs[0]['name']

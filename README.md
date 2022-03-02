@@ -1,4 +1,4 @@
-# PyOpenVINO - An Experimental Python Implementation of OpenVINO inference engine (minimum-set)
+# PyOpenVINO - An Experimental Python Implementation of OpenVINO Inference Engine (minimum-set)
 ----------------------------
 
 ## Description
