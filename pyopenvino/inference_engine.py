@@ -18,7 +18,7 @@ import common_def
 # -------------------------------------------------------------------------------------------------------
 
 # Class for operator plugins
-class plugins:
+class Plugins:
     def __init__(self):
         self.plugins={}
 
@@ -45,7 +45,7 @@ class plugins:
 class IECore:
     def __init__(self):
         # Load ops plug-ins
-        self.plugins = plugins()
+        self.plugins = Plugins()
         self.plugins.load_plugins('pyopenvino/op_plugins')
 
     def construct_node_info(self, net, node_type:str) -> list:
