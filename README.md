@@ -37,10 +37,47 @@ python test_pyopenvino.py
 You'll see the output like this.  
 ```sh
 pyopenvino>python test_pyopenvino.py
-2.4045448303222656 sec/inf
-[2 0 1 7 8 6 3 4 5 9] {'Func/StatefulPartitionedCall/output/_11:0': array([[7.8985232e-07, 2.0382242e-08, 9.9999917e-01, 1.0367380e-10,
-        1.0184052e-10, 1.6024986e-12, 2.0729658e-10, 1.6014939e-08,
-        6.5354605e-10, 9.5946288e-14]], dtype=float32)}
+inputs: [{'name': 'conv2d_input', 'type': 'Parameter', 'version': 'opset1', 'data': {'element_type': 'f32', 'shape': (1, 1, 28, 28)}, 'output': {0: {'precision': 'FP32', 'dims': (1, 1, 28, 28)}}}]
+outputs: [{'name': 'Func/StatefulPartitionedCall/output/_11:0', 'type': 'Result', 'version': 'opset1', 'input': {0: {'precision': 'FP32', 'dims': (1, 10)}}}]
+# node_name, time (sec)
+conv2d_input Parameter, 0.0
+conv2d_input/scale_copy Const, 0.0
+StatefulPartitionedCall/sequential/conv2d/Conv2D Convolution, 0.20299792289733887
+StatefulPartitionedCall/sequential/conv2d/BiasAdd/ReadVariableOp Const, 0.0
+StatefulPartitionedCall/sequential/conv2d/BiasAdd/Add Add, 0.0010013580322265625
+StatefulPartitionedCall/sequential/conv2d/Relu ReLU, 0.0
+StatefulPartitionedCall/sequential/max_pooling2d/MaxPool MaxPool, 0.038005828857421875
+StatefulPartitionedCall/sequential/conv2d_1/Conv2D/ReadVariableOp Const, 0.0020055770874023438
+StatefulPartitionedCall/sequential/conv2d_1/Conv2D Convolution, 0.07199859619140625
+StatefulPartitionedCall/sequential/conv2d_1/BiasAdd/ReadVariableOp Const, 0.0
+StatefulPartitionedCall/sequential/conv2d_1/BiasAdd/Add Add, 0.0
+StatefulPartitionedCall/sequential/conv2d_1/Relu ReLU, 0.0
+StatefulPartitionedCall/sequential/max_pooling2d_1/MaxPool MaxPool, 0.012127876281738281
+StatefulPartitionedCall/sequential/target_conv_layer/Conv2D/ReadVariableOp Const, 0.003002643585205078
+StatefulPartitionedCall/sequential/target_conv_layer/Conv2D Convolution, 0.008000373840332031
+StatefulPartitionedCall/sequential/target_conv_layer/BiasAdd/ReadVariableOp Const, 0.0010004043579101562
+StatefulPartitionedCall/sequential/target_conv_layer/BiasAdd/Add Add, 0.0
+StatefulPartitionedCall/sequential/target_conv_layer/Relu ReLU, 0.0
+StatefulPartitionedCall/sequential/target_conv_layer/Relu/Transpose/value6071024 Const, 0.0
+StatefulPartitionedCall/sequential/target_conv_layer/Relu/Transpose Transpose, 0.0
+StatefulPartitionedCall/sequential/flatten/Const Const, 0.0
+StatefulPartitionedCall/sequential/flatten/Reshape Reshape, 0.0
+StatefulPartitionedCall/sequential/dense/MatMul/ReadVariableOp Const, 0.001239776611328125
+StatefulPartitionedCall/sequential/dense/MatMul MatMul, 0.0010020732879638672
+StatefulPartitionedCall/sequential/dense/BiasAdd/ReadVariableOp Const, 0.0
+StatefulPartitionedCall/sequential/dense/BiasAdd/Add Add, 0.0
+StatefulPartitionedCall/sequential/dense/Relu ReLU, 0.0
+StatefulPartitionedCall/sequential/dense_1/MatMul/ReadVariableOp Const, 0.0
+StatefulPartitionedCall/sequential/dense_1/MatMul MatMul, 0.0
+StatefulPartitionedCall/sequential/dense_1/BiasAdd/ReadVariableOp Const, 0.0
+StatefulPartitionedCall/sequential/dense_1/BiasAdd/Add Add, 0.0
+StatefulPartitionedCall/sequential/dense_1/Softmax SoftMax, 0.0009996891021728516
+Func/StatefulPartitionedCall/output/_11:0 Result, 0.0
+@TOTAL_TIME, 0.3769979476928711
+0.3789963722229004 sec/inf
+[2 0 1 7 8 6 3 4 5 9] {'Func/StatefulPartitionedCall/output/_11:0': array([[7.8985136e-07, 2.0382247e-08, 9.9999917e-01, 1.0367385e-10,
+        1.0184062e-10, 1.6024957e-12, 2.0729640e-10, 1.6014919e-08,
+        6.5354638e-10, 9.5946295e-14]], dtype=float32)}
 ```
 
 4. Run `Draw-and-Inter` demo  
