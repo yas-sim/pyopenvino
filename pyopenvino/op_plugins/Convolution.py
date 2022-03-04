@@ -26,7 +26,7 @@ def im2col(input, kh, kw, strides, pads_begin, pads_end):
     ow = (w + pads_begin[1] + pads_end[1] - kw)//strides[1] + 1
 
     img = np.pad(input, [(0,0), (0,0), (pads_begin[1], pads_begin[0]), (pads_end[1], pads_end[0])], 'constant')
-    col = np.zeros((n, c, kh, kw, oh, ow), dtype=np.float32)
+    col = np.zeros((n, c, kh, kw, oh, ow), dtype=input.dtype)
 
     for y in range(kh):
         y_max = y + strides[0]*oh
@@ -72,7 +72,7 @@ def kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     ow = (w-kw+pb1+pe1)//sw + 1
 
     input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
-    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
+    output = np.zeros((n, kn, oh, ow), dtype=input.dtype)
 
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
@@ -97,7 +97,7 @@ def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     ow = (w-kw+pb1+pe1)//sw + 1
 
     input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
-    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
+    output = np.zeros((n, kn, oh, ow), dtype=input.dtype)
 
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
