@@ -16,7 +16,7 @@ def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rou
     oh = (h-kh)//sh + 1
     ow = (w-kw)//sw + 1
 
-    res = np.zeros((n, c, oh, ow), dtype=np.float32)
+    res = np.zeros((n, c, oh, ow), dtype=input0.dtype)
 
     for bn in range(n):
         for ch in range(c):
@@ -38,7 +38,7 @@ def kernel_MaxPool_naive(inputs:dict, strides, pads_begin, pads_end, kernel, rou
     oh = (h-kh)//sh + 1
     ow = (w-kw)//sw + 1
 
-    res = np.zeros((n, c, oh, ow), dtype=np.float32)
+    res = np.zeros((n, c, oh, ow), dtype=input0.dtype)
 
     for bn in range(n):
         for ch in range(c):
