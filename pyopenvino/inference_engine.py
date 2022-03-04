@@ -8,6 +8,8 @@ import glob
 import importlib
 import time
 
+import numpy as np
+
 import networkx as nx
 import xml.etree.ElementTree as et
 
@@ -193,6 +195,7 @@ class IENetwork:
 class Executable_Network:
     def __init__(self, ienetwork:IENetwork):
         self.ienet = ienetwork
+        self.expected_result = None     # { 'inception_5a/pool': ['FP16', ['1', '832', '7', '7'], array([[[[ 0.6244107 ,  0.6244107 ,
         self.kernel_type = 'naive'      # 'naive' or 'numpy'
 
     def schedule_tasks(self):
@@ -234,15 +237,19 @@ class Executable_Network:
                 inputs = self.prepare_inputs_for_task(task)
 
             if node_type not in p.plugins:
-                print('ERROR: Operation \'{}\' is not supported.'.format(node_name))
+                print('ERROR: Operation \'{}\' (node={}) is not supported.'.format(node_type, node_name))
                 sys.exit(-1)
             if verbose:
-                print(node_name, node_type, end='', flush=True)
+                print(task, node_name, node_type, end=' ', flush=True)
             stime = time.time()
             res = p.plugins[node_type].compute(node, inputs, kernel_type=self.kernel_type, debug=False)  # Run a task (op)
             etime = time.time()
             if verbose:
-                print(',', etime-stime)
+                print(etime-stime)
+            if self.expected_result is not None:
+                if node_name in self.expected_result:
+                    out_id, out_data = next(iter(res.items()))
+                    common_def.compare_results(node_name=node_name, result=out_data, GT=self.expected_result)
 
             # Set computation result to output ports
             if len(res)>0:
@@ -258,6 +265,8 @@ class Executable_Network:
 
     # OpenVINO IE compatible API - Run inference
     def infer(self, inputs:dict, verbose:bool=False) -> dict:
+        if self.expected_result is not None:
+            common_def.enable_escape_sequence()
         G = self.ienet.G
         # Set input data for inference
         for node_name, val in inputs.items():
@@ -266,7 +275,7 @@ class Executable_Network:
                     G.nodes[node]['param'] = val
 
         if verbose:
-            print('# node_name, time (sec)')
+            print('# node_id node_name time (sec)')
         stime = time.time()
         self.run_tasks(verbose)
         etime = time.time()

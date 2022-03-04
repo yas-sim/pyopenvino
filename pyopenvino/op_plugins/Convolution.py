@@ -1,4 +1,5 @@
 # Convolution
+import math
 import common_def
 import numpy as np
 
@@ -15,15 +16,15 @@ def disp_result(data):
                 print('{:6.3f},'.format(data[0,c,h,w]), end='')
             print()
 
+
+
 # ---------------------------------------------------------------------------------------
 
 # Referred from 'deep-learning-from-scratch' project
 # https://github.com/oreilly-japan/deep-learning-from-scratch
 
-def im2col(input, kh, kw, strides, pads_begin, pads_end):
+def im2col(input, kh, kw, oh, ow, strides, pads_begin, pads_end):
     n, c, h, w = input.shape
-    oh = (h + pads_begin[0] + pads_end[0] - kh)//strides[0] + 1
-    ow = (w + pads_begin[1] + pads_end[1] - kw)//strides[1] + 1
 
     img = np.pad(input, [(0,0), (0,0), (pads_begin[1], pads_begin[0]), (pads_end[1], pads_end[0])], 'constant')
     col = np.zeros((n, c, kh, kw, oh, ow), dtype=input.dtype)
@@ -47,10 +48,9 @@ def kernel_conv2d_im2col(inputs, strides, dilation, pads_begin, pads_end, auto_p
     pe0, pe1       = pads_end
 
     # output feature map size
-    oh = (h+pb0+pe0-kh)//sh + 1
-    ow = (w+pb1+pb1-kw)//sw + 1
+    oh, ow = common_def.calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
-    col = im2col(input, kh, kw, strides, pads_begin, pads_end)
+    col = im2col(input, kh, kw, oh, ow, strides, pads_begin, pads_end)
     col_W = kernel.reshape(kn, -1).T
     output = np.dot(col, col_W)
     output = output.reshape(n, oh, ow, -1).transpose(0, 3, 1, 2)
@@ -68,16 +68,17 @@ def kernel_conv2d_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     pe0, pe1       = pads_end
 
     # output feature map size
-    oh = (h-kh+pb0+pe0)//sh + 1
-    ow = (w-kw+pb1+pe1)//sw + 1
+    oh, ow = common_def.calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
     input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
     output = np.zeros((n, kn, oh, ow), dtype=input.dtype)
 
+    n, c, h, w     = input.shape   # Input image (padded)
+
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
             for dx in range(ow):
-                patch = input[0, :, dy*sh:dy*sh+kh, dx*sw:dx*sw+kw]
+                patch = input[0, :, dy*sh:min(h, dy*sh+kh), dx*sw:min(w, dx*sw+kw)]
                 output[0, fc, dy, dx] = np.sum(patch*kernel[fc])
     return output
 
@@ -93,11 +94,12 @@ def kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pa
     pe0, pe1       = pads_end
 
     # output feature map size
-    oh = (h-kh+pb0+pe0)//sh + 1
-    ow = (w-kw+pb1+pe1)//sw + 1
+    oh, ow = common_def.calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
     input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
     output = np.zeros((n, kn, oh, ow), dtype=input.dtype)
+
+    n, c, h, w     = input.shape   # Input image (padded)
 
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
@@ -126,7 +128,7 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
     dilation = common_def.string_to_tuple(node['data']['dilations'])
     pads_begin = common_def.string_to_tuple(node['data']['pads_begin'])
     pads_end = common_def.string_to_tuple(node['data']['pads_end'])
-    auto_pad = True if node['data']['auto_pad']=='valid' else False
+    auto_pad = node['data']['auto_pad']
 
     if kernel_type == 'naive':
         res = kernel_conv2d_naive(inputs, strides, dilation, pads_begin, pads_end, auto_pad)

@@ -1,59 +1,50 @@
-# MaxPool
+# AvgPool
 import math
 import numpy as np
 import common_def
 
 def name():
-    print('MaxPool')
+    print('AvgPool')
 
 
-def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
+def kernel_AvgPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
     input0   = inputs[0]
     n,c,h,w  = input0.shape
     sh, sw   = strides
     kh, kw   = kernel
-    pb0, pb1 = pads_begin
-    pe0, pe1 = pads_end
 
     # output feature map size
     oh, ow = common_def.calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, rounding_type, auto_pad)
 
     res = np.zeros((n, c, oh, ow), dtype=input0.dtype)
-    input0 = np.pad(input0, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
-
-    n,c,h,w  = input0.shape
 
     for bn in range(n):
         for ch in range(c):
             for y in range(oh):
                 for x in range(ow):
-                    patch = input0[bn, ch, y*sh:min(h, y*sh+kh), x*sw:min(w, x*sw+kw)]
-                    max_val = np.max(patch)
-                    res[bn, ch, y, x] = max_val
+                    patch = input0[bn, ch, y*sh:min(h-1, y*sh+kh), x*sw:min(w-1, x*sw+kw)]
+                    avg_val = np.average(patch)
+                    res[bn, ch, y, x] = avg_val
     return res
 
 
-def kernel_MaxPool_naive(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
+def kernel_AvgPool_naive(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
     input0 = inputs[0]
     n,c,h,w = input0.shape
     sh, sw  = strides
     kh, kw  = kernel
-    pb0, pb1 = pads_begin
-    pe0, pe1 = pads_end
 
     # output feature map size
     oh, ow = common_def.calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, rounding_type, auto_pad)
 
     res = np.zeros((n, c, oh, ow), dtype=input0.dtype)
-    input0 = np.pad(input0, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
-
-    n,c,h,w  = input0.shape
 
     for bn in range(n):
         for ch in range(c):
             for y in range(oh):
                 for x in range(ow):
-                    max_val = 0
+                    total_val = 0
+                    count = 0
                     for ky in range(kh):
                         iy = y*sh+ky
                         if iy>=h:
@@ -62,10 +53,10 @@ def kernel_MaxPool_naive(inputs:dict, strides, pads_begin, pads_end, kernel, rou
                             ix = x*sw+kx
                             if ix>=w:
                                 continue
-                            val = input0[bn, ch, iy, ix]
-                            if max_val < val:
-                                max_val = val
-                    res[bn, ch, y, x] = max_val
+                            total_val += input0[bn, ch, y*sh + ky, x*sw + kx]
+                            count += 1
+                    assert count > 0
+                    res[bn, ch, y, x] = total_val / count
     return res
 
 
@@ -87,15 +78,15 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
     auto_pad = node['data']['auto_pad']
 
     if kernel_type == 'naive':
-        res = kernel_MaxPool_naive(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
+        res = kernel_AvgPool_naive(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
     else:
-        res = kernel_MaxPool_numpy(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
+        res = kernel_AvgPool_numpy(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }
     return res
 
-# {'name': 'StatefulPartitionedCall/sequential/max_pooling2d/MaxPool', 'type': 'MaxPool', 'version': 'opset1', 
-#  'data': {'strides': '2, 2', 'pads_begin': '0, 0', 'pads_end': '0, 0', 'kernel': '2, 2', 'rounding_type': 'floor', 'auto_pad': 'valid'}, 
-#  'input': {0: {'precision': 'FP32', 'dims': (1, 32, 26, 26)}}, 
-#  'output': {1: {'precision': 'FP32', 'dims': (1, 32, 13, 13)}}}
+# {'name': 'pool5/7x7_s1', 'type': 'AvgPool', 'version': 'opset1', 
+# 'data': {'auto_pad': 'explicit', 'exclude-pad': 'false', 'kernel': '7, 7', 'pads_begin': '0, 0', 'pads_end': '0, 0', 'rounding_type': 'ceil', 'strides': '1, 1'}, 
+# 'input': {0: {'precision': 'FP16', 'dims': (1, 1024, 7, 7)}}, 
+# 'output': {1: {'precision': 'FP16', 'dims': (1, 1024, 1, 1)}}}
