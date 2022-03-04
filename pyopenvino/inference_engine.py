@@ -2,7 +2,6 @@
 #
 # Full-Python OpenVINO-alike inference engine implementation
 
-from re import A
 import sys, os
 import struct
 import glob
@@ -60,9 +59,6 @@ class IECore:
     def read_network(self, model:str, weights:str):
         net = IENetwork(self)
         net.read_IR_Model(model)
-        if net.xml is None or net.bin is None:
-            print('failed to read model file')
-            return -1
         net.parse_IR_XML()
         net.build_graph()
         net.set_constants_to_graph()
@@ -95,8 +91,7 @@ class IENetwork:
         xmlFile = bname + '.xml'
         binFile = bname + '.bin'
         if not os.path.isfile(xmlFile) or not os.path.isfile(binFile):
-            print('model {} is not found'.format(model))
-            return
+            raise Exception('model {} is not found'.format(model))
 
         self.xml = et.parse(bname+'.xml')
 
@@ -108,8 +103,7 @@ class IENetwork:
     def parse_IR_XML(self):
         root = self.xml.getroot()
         if root.tag != 'net':
-            print('not an OpenVINO IR file')
-            return
+            raise Exception('Not an OpenVINO IR file')
 
         dict_layers = {}
         layers = root.findall('./layers/layer')
