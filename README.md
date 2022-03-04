@@ -10,6 +10,7 @@ Supported API is quite limited, but it mimics OpenVINO IE Python API. So, you ca
 - Very slow and limited functionality. Not a general DL inference engine.
 - Naive and straightforward code: (I hope) This is a good reference for learning deep-learning technology.  
 - Extensible ops: Ops are implemented as plugins. You can easily add your ops as needed.  
+- MNIST CNN and Googlenet-v1 are working.  
 
 ------------------------
 
@@ -142,5 +143,9 @@ The op needs to calculate the result from the input data and return it as a Pyth
 Not all, but some Ops have dual kernel implementation, a naive implementation (easy to read), and a NumPy version implementation (a bit faster).  
 The NumPy version might be x10+ faster than the naive version.  
 The kernel type can be specified with `Executable_Network.kernel_type` attribute. You can specify eitgher one of `'naive'` (default) or `'numpy'`. Please refer to the sample program `test_pyopenvino.py` for the details.  
+
+## Tested DL Models  
+- MNIST (Conv+FC+SoftMax)
+- Googlenet-v1
 
 END
