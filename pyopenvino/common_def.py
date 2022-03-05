@@ -138,7 +138,9 @@ def calc_output_shape(input_dim:tuple, kernel_dim:tuple, strides:tuple, pads_beg
             oh = math.ceil((h - kh)/sh) + 1
             ow = math.ceil((w - kw)/sw) + 1
     elif auto_pad == 'same_upper' or auto_pad == 'same_lower':
-            oh = h
-            ow = w
+            #oh = h
+            #ow = w
+            oh = h//sh
+            ow = w//sw
     
     return (oh, ow)

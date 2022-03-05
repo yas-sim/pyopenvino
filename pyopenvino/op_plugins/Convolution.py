@@ -17,7 +17,6 @@ def disp_result(data):
             print()
 
 
-
 # ---------------------------------------------------------------------------------------
 
 # Referred from 'deep-learning-from-scratch' project

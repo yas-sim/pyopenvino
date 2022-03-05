@@ -48,6 +48,7 @@ class IECore:
         # Load ops plug-ins
         self.plugins = Plugins()
         self.plugins.load_plugins('pyopenvino/op_plugins')
+        common_def.enable_escape_sequence()
 
     def construct_node_info(self, net, node_type:str) -> list:
         node_list = []
@@ -56,6 +57,17 @@ class IECore:
             node_attr = net.G.nodes[node_id]
             node_list.append(node_attr)
         return node_list
+
+    def check_nodes(self, G:nx.DiGraph): # Check whether the nodes are supported or not
+        unsupported_nodes = set()
+        for node_id in G.nodes:
+            node = G.nodes[node_id]
+            node_type = node['type']
+            if node_type not in self.plugins.plugins:
+                unsupported_nodes.add(node_type)
+        if len(unsupported_nodes) > 0:
+            print('\x1b[31mUnsupported nodes : {}\x1b[37m'.format(unsupported_nodes))
+            #assert False
 
     # OpenVINO Inference Engine API
     def read_network(self, model:str, weights:str):
@@ -72,6 +84,7 @@ class IECore:
     # OpenVINO Inference Engine API
     def load_network(self, network, device_name:str='CPU', num_requests:int=1):
         exenet = Executable_Network(network)
+        self.check_nodes(exenet.ienet.G)        # Check whether nodes are supported or not
         exenet.schedule_tasks()
         return exenet
 
@@ -255,6 +268,8 @@ class Executable_Network:
                 sys.exit(-1)
             if verbose:
                 print('{}, {}, {}, '.format(task, node_name, node_type), end=' ', flush=True)
+            if task == 6: # Probe point for debugging - No functional meaning
+                dummy_debug_probe_point = True
             stime = time.time()
             res = p.plugins[node_type].compute(node, inputs, kernel_type=self.kernel_type, debug=False)  # Run a task (op)
             etime = time.time()

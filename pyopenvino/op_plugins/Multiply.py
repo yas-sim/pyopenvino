@@ -9,7 +9,10 @@ def name():
 def kernel_Multiply_numpy(inputs:dict):
     input0 = inputs[0]
     input1 = inputs[1]
-    input1 = np.broadcast_to(input1, input0.shape)
+    if input0.size > input1.size:
+        input1 = np.broadcast_to(input1, input0.shape)
+    else:
+        input0 = np.broadcast_to(input0, input1.shape)
     res = input0 * input1
     return res
 
