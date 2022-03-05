@@ -18,6 +18,12 @@ Supported API is quite limited, but it mimics OpenVINO IE Python API. So, you ca
 
 Steps 1 and 2 are optional since the converted MNIST IR model is provided.  
 
+0. Install required Python packages (`opencv-python`, `numpy`, `networkx`)
+```sh
+python -m pip install --upgrade pip setuptools
+python -m pip install -r requirements.txt
+```
+
 1. (Optional) Train a model and generate a '`saved_model`' with TensorFlow  
 ```sh
 python mnist-tf-training.py
