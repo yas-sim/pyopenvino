@@ -1,8 +1,11 @@
+import platform
 import math
 import numpy as np
 import networkx as nx
 
-from ctypes import windll, wintypes, byref
+if platform.system() == 'Windows':
+    from ctypes import windll, wintypes, byref
+
 from functools import reduce
 
 format_config = { 'FP32': ['f', 4], 'FP16': ['e', 2], 'F32' : ['f', 4], 'F16' : ['e', 2],
@@ -18,24 +21,26 @@ def string_to_tuple(string:str) -> tuple:
 
 # Enable escape sequence on Windows (for coloring text)
 def enable_escape_sequence():
-  INVALID_HANDLE_VALUE = -1
-  STD_INPUT_HANDLE = -10
-  STD_OUTPUT_HANDLE = -11
-  STD_ERROR_HANDLE = -12
-  ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
-  ENABLE_LVB_GRID_WORLDWIDE = 0x0010
+    if platform.system() != 'Windows':
+        return
+    INVALID_HANDLE_VALUE = -1
+    STD_INPUT_HANDLE = -10
+    STD_OUTPUT_HANDLE = -11
+    STD_ERROR_HANDLE = -12
+    ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+    ENABLE_LVB_GRID_WORLDWIDE = 0x0010
 
-  hOut = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
-  if hOut == INVALID_HANDLE_VALUE:
-    return False
-  dwMode = wintypes.DWORD()
-  if windll.kernel32.GetConsoleMode(hOut, byref(dwMode)) == 0:
-    return False
-  dwMode.value |= ENABLE_VIRTUAL_TERMINAL_PROCESSING
-  # dwMode.value |= ENABLE_LVB_GRID_WORLDWIDE
-  if windll.kernel32.SetConsoleMode(hOut, dwMode) == 0:
-    return False
-  return True
+    hOut = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+    if hOut == INVALID_HANDLE_VALUE:
+        return False
+    dwMode = wintypes.DWORD()
+    if windll.kernel32.GetConsoleMode(hOut, byref(dwMode)) == 0:
+        return False
+    dwMode.value |= ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    # dwMode.value |= ENABLE_LVB_GRID_WORLDWIDE
+    if windll.kernel32.SetConsoleMode(hOut, dwMode) == 0:
+        return False
+    return True
 
 # -------------------------------------------------------------------------------------------------------
 
