@@ -23,6 +23,8 @@ def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rou
 
     n,c,h,w  = input0.shape
 
+    """
+    # A bit naive version of MaxPool-Numpy
     for bn in range(n):
         for ch in range(c):
             for y in range(oh):
@@ -30,6 +32,12 @@ def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rou
                     patch = input0[bn, ch, y*sh:min(h, y*sh+kh), x*sw:min(w, x*sw+kw)]
                     max_val = np.max(patch)
                     res[bn, ch, y, x] = max_val
+    """
+    for y in range(oh):
+        for x in range(ow):
+            patch = input0[:, :, y*sh:min(h, y*sh+kh), x*sw:min(w, x*sw+kw)]
+            max_val = np.max(patch, axis=(2,3))
+            res[:, :, y, x] = max_val
     return res
 
 
