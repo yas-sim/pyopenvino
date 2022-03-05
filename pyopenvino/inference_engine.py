@@ -199,16 +199,30 @@ class Executable_Network:
         self.kernel_type = 'naive'      # 'naive' or 'numpy'
 
     def schedule_tasks(self):
-        def search_predecessors(G, node_ids, task_list:list):
-            for node_id in node_ids:
-                predecessors = list(G.pred[node_id])
-                search_predecessors(G, predecessors, task_list)
-                if node_id not in task_list:
-                    task_list.append(node_id)
-        outputs = self.ienet.find_node_by_type('Result')
+        # Check if required data are ready to run the node
+        def check_if_node_is_ready(node_id:int, task_list:list, G:nx.DiGraph):
+            predecessors = G.predecessors(node_id)
+            ready = True
+            for predecessor in predecessors:
+                if predecessor not in task_list:
+                    ready = False
+                    break
+            return ready
+
+        pending_nodes = []
         self.task_list = []
-        outputs = [ key for key,_ in outputs]
-        search_predecessors(self.ienet.G, outputs, self.task_list)
+        for node_id in self.ienet.G.nodes:
+            if self.ienet.G.nodes[node_id]['type'] in [ 'Const', 'Parameter']:
+                self.task_list.append(node_id)
+            else:
+                pending_nodes.append(node_id)
+        while len(pending_nodes) > 0:
+            for node_id in pending_nodes:
+                assert node_id not in self.task_list
+                ready = check_if_node_is_ready(node_id, self.task_list, self.ienet.G)
+                if ready:
+                    self.task_list.append(node_id)
+                    pending_nodes.remove(node_id)
 
     # Gather and prepare the input data which needed to run a task
     def prepare_inputs_for_task(self, task:str) -> dict:

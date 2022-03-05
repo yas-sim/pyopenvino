@@ -82,6 +82,7 @@ def compare_results(node_name:str, result:np.array, GT:dict):
         print(GT_data)
         assert False
 
+
 # DEBUG: Display np.ndarray data for debug purpose
 def disp_result(data):
     N,C,H,W = data.shape
