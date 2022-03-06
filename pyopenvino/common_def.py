@@ -112,35 +112,3 @@ def dump_graph(G:nx.DiGraph):
 # ---------------------------------------------------------------------------------------
 
 
-# Convolution, MaxPool
-def calc_output_shape(input_dim:tuple, kernel_dim:tuple, strides:tuple, pads_begin:tuple, pads_end:tuple, rounding_type:str, auto_pad:str):
-    h, w     = input_dim
-    kh, kw   = kernel_dim
-    sh, sw   = strides
-    pb0, pb1 = pads_begin
-    pe0, pe1 = pads_end
-
-    # output feature map size
-    assert auto_pad in [ 'explicit', 'valid', 'same_upper', 'same_lower' ]
-    assert rounding_type in [ 'floor', 'ceil' ]
-    if auto_pad == 'explicit':
-        if rounding_type == 'floor':
-            oh = math.floor((h + pb0 + pe0 - kh)/sh) + 1
-            ow = math.floor((w + pb1 + pe1 - kw)/sw) + 1
-        elif rounding_type == 'ceil':
-            oh = math.ceil((h + pb0 + pe0 - kh)/sh) + 1
-            ow = math.ceil((w + pb1 + pe1 - kw)/sw) + 1
-    elif auto_pad == 'valid':
-        if rounding_type == 'floor':
-            oh = math.floor((h - kh)/sh) + 1
-            ow = math.floor((w - kw)/sw) + 1
-        if rounding_type == 'ceil':
-            oh = math.ceil((h - kh)/sh) + 1
-            ow = math.ceil((w - kw)/sw) + 1
-    elif auto_pad == 'same_upper' or auto_pad == 'same_lower':
-            #oh = h
-            #ow = w
-            oh = h//sh
-            ow = w//sw
-    
-    return (oh, ow)

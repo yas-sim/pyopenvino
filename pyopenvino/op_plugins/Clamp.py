@@ -13,7 +13,6 @@ def kernel_Clamp_numpy(inputs:dict, min_val, max_val):
 
 
 def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
-    debug = True
     if debug:
         print(node)
 

@@ -7,6 +7,37 @@ def name():
     print('MaxPool')
 
 
+def calc_output_shape(input_dim:tuple, kernel_dim:tuple, strides:tuple, pads_begin:tuple, pads_end:tuple, rounding_type:str, auto_pad:str):
+    h, w     = input_dim
+    kh, kw   = kernel_dim
+    sh, sw   = strides
+    pb0, pb1 = pads_begin
+    pe0, pe1 = pads_end
+
+    # output feature map size
+    assert auto_pad in [ 'explicit', 'valid', 'same_upper', 'same_lower' ]
+    assert rounding_type in [ 'floor', 'ceil' ]
+    if auto_pad == 'explicit':
+        if rounding_type == 'floor':
+            oh = math.floor((h + pb0 + pe0 - kh)/sh) + 1
+            ow = math.floor((w + pb1 + pe1 - kw)/sw) + 1
+        elif rounding_type == 'ceil':
+            oh = math.ceil((h + pb0 + pe0 - kh)/sh) + 1
+            ow = math.ceil((w + pb1 + pe1 - kw)/sw) + 1
+    elif auto_pad == 'valid':
+        if rounding_type == 'floor':
+            oh = math.floor((h - kh)/sh) + 1
+            ow = math.floor((w - kw)/sw) + 1
+        if rounding_type == 'ceil':
+            oh = math.ceil((h - kh)/sh) + 1
+            ow = math.ceil((w - kw)/sw) + 1
+    elif auto_pad == 'same_upper' or auto_pad == 'same_lower':
+            oh = h
+            ow = w
+    
+    return (oh, ow)
+
+
 def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad):
     input0   = inputs[0]
     n,c,h,w  = input0.shape
@@ -87,12 +118,12 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
         assert data.dtype == common_def.type_convert_tbl[input_port['precision']]
         assert data.shape == input_port['dims']
 
-    strides = common_def.string_to_tuple(node['data']['strides'])
-    pads_begin = common_def.string_to_tuple(node['data']['pads_begin'])
-    pads_end = common_def.string_to_tuple(node['data']['pads_end'])
-    kernel = common_def.string_to_tuple(node['data']['kernel'])
+    strides       = common_def.string_to_tuple(node['data']['strides'])
+    pads_begin    = common_def.string_to_tuple(node['data']['pads_begin'])
+    pads_end      = common_def.string_to_tuple(node['data']['pads_end'])
+    kernel        = common_def.string_to_tuple(node['data']['kernel'])
     rounding_type = node['data']['rounding_type']
-    auto_pad = node['data']['auto_pad']
+    auto_pad      = node['data']['auto_pad']
 
     if kernel_type == 'naive':
         res = kernel_MaxPool_naive(inputs, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
