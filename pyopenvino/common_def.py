@@ -14,9 +14,17 @@ format_config = { 'FP32': ['f', 4], 'FP16': ['e', 2], 'F32' : ['f', 4], 'F16' : 
 type_convert_tbl = { 'f32':np.float32, 'f16':np.float16, 'i64':np.int64, 'i32':np.int32, 'i16':np.int16, 'i8':np.int8, 'u8':np.uint8,
                     'FP32':np.float32, 'FP16':np.float16, 'I64':np.int64 }
 
+def string_to_boolean(bool_val:str):
+    bool_val = bool_val.upper()
+    res = True if bool_val in ['TRUE', '1'] else False
+    return res
 
 def string_to_tuple(string:str) -> tuple:
     tmp_list = [ int(item) for item in string.split(',') ]
+    return tuple(tmp_list)
+
+def string_to_tuple_float(string:str) -> tuple:
+    tmp_list = [ float(item) for item in string.split(',') ]
     return tuple(tmp_list)
 
 # Enable escape sequence on Windows (for coloring text)

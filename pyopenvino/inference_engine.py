@@ -268,7 +268,7 @@ class Executable_Network:
                 sys.exit(-1)
             if verbose:
                 print('{}, {}, {}, '.format(task, node_name, node_type), end=' ', flush=True)
-            if task == 6: # Probe point for debugging - No functional meaning
+            if task == 180: # Probe point for debugging - No functional meaning
                 dummy_debug_probe_point = True
             stime = time.time()
             res = p.plugins[node_type].compute(node, inputs, kernel_type=self.kernel_type, debug=False)  # Run a task (op)

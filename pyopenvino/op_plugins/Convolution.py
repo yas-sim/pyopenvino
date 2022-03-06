@@ -42,10 +42,8 @@ def calc_output_shape(input_dim:tuple, kernel_dim:tuple, strides:tuple, pads_beg
             oh = math.ceil((h - kh)/sh) + 1
             ow = math.ceil((w - kw)/sw) + 1
     elif auto_pad == 'same_upper' or auto_pad == 'same_lower':
-            #oh = h
-            #ow = w
-            oh = h//sh
-            ow = w//sw
+            oh = math.ceil(h/sh)
+            ow = math.ceil(w/sw)
     
     return (oh, ow)
 
@@ -59,7 +57,7 @@ def im2col(input, kh, kw, oh, ow, strides, pads_begin, pads_end):
     n, c, h, w = input.shape
 
     img = np.pad(input, [(0,0), (0,0), (pads_begin[1], pads_begin[0]), (pads_end[1], pads_end[0])], 'constant')
-    col = np.zeros((n, c, kh, kw, oh, ow), dtype=input.dtype)
+    col = np.zeros((n, c, kh, kw, oh, ow), dtype=np.float32)
 
     for y in range(kh):
         y_max = y + strides[0]*oh
@@ -86,6 +84,7 @@ def kernel_Convolution_im2col(inputs, strides, dilation, pads_begin, pads_end, a
     col_W = kernel.reshape(kn, -1).T
     output = np.dot(col, col_W)
     output = output.reshape(n, oh, ow, -1).transpose(0, 3, 1, 2)
+    output = output
     return output
 
 # ---------------------------------------------------------------------------------------
@@ -103,7 +102,7 @@ def kernel_Convolution_numpy(inputs, strides, dilation, pads_begin, pads_end, au
     oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
     input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
-    output = np.zeros((n, kn, oh, ow), dtype=input.dtype)
+    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
 
     n, c, h, w     = input.shape   # Input image (padded)
 
@@ -129,7 +128,7 @@ def kernel_Convolution_naive(inputs, strides, dilation, pads_begin, pads_end, au
     oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
     input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
-    output = np.zeros((n, kn, oh, ow), dtype=input.dtype)
+    output = np.zeros((n, kn, oh, ow), dtype=np.float32)
 
     n, c, h, w     = input.shape   # Input image (padded)
 
@@ -170,6 +169,8 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
         res = kernel_Convolution_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad)
 
     output_port_id = next(iter(node['output']))     # Get output port number
+    output_precision = common_def.type_convert_tbl[node['output'][output_port_id]['precision']]
+    res = res.astype(output_precision)
     res = { output_port_id:res }
     return res
 
