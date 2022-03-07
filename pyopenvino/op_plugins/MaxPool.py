@@ -47,7 +47,7 @@ def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rou
     pe0, pe1 = pads_end
 
     # output feature map size
-    oh, ow = common_def.calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, rounding_type, auto_pad)
+    oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, rounding_type, auto_pad)
 
     res = np.zeros((n, c, oh, ow), dtype=input0.dtype)
     input0 = np.pad(input0, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
@@ -81,7 +81,7 @@ def kernel_MaxPool_naive(inputs:dict, strides, pads_begin, pads_end, kernel, rou
     pe0, pe1 = pads_end
 
     # output feature map size
-    oh, ow = common_def.calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, rounding_type, auto_pad)
+    oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, rounding_type, auto_pad)
 
     res = np.zeros((n, c, oh, ow), dtype=input0.dtype)
     input0 = np.pad(input0, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
