@@ -1,5 +1,7 @@
 # DetectionOutput
 
+import math
+from types import new_class
 import numpy as np
 import common_def
 
@@ -11,10 +13,10 @@ def iou(a, b):
     area_a = (a[2] - a[0]) * (a[3] - a[1])
     area_b = (b[2] - b[0]) * (b[3] - b[1])
 
-    iou_x1 = np.maximum(a[0], b[0])
-    iou_y1 = np.maximum(a[1], b[1])
-    iou_x2 = np.minimum(a[2], b[2])
-    iou_y2 = np.minimum(a[3], b[3])
+    iou_x1 = np.max(a[0], b[0])
+    iou_y1 = np.max(a[1], b[1])
+    iou_x2 = np.min(a[2], b[2])
+    iou_y2 = np.min(a[3], b[3])
 
     iou_w = iou_x2 - iou_x1
     iou_h = iou_y2 - iou_y1
@@ -27,27 +29,212 @@ def iou(a, b):
 
     return iou
 
-def nms():
-    '''
-    # Do non-maximum suppression to reject the redundant objects on the overlap region
-    for obj_id1, obj1 in enumerate(objects[:-2]):
-        for obj_id2, obj2 in enumerate(objects[obj_id1+1:]):
-            if obj1[6] == True and obj2[6]==True:
-                IOU = iou(obj1[0:3+1], obj2[0:3+1])
-                if IOU>0.5:
-                    if obj1[4]<obj2[4]:
-                        obj1[6] = False
-                    else:
-                        obj2[6] = False
-    '''
+
+def nms(decoded_bboxes, class_num, confidence, nms_threshold):
+
+    num_boxes = decoded_bboxes.shape[0]
+
+    keep = [ True ] * num_boxes
+    for box1_id, box1 in enumerate(decoded_bboxes[:-2]):
+        for box2_id, box2 in enumerate(decoded_bboxes[box1_id+1:]):
+            iou_val = iou(box1, box2)
+            if iou_val > nms_threshold:
+                if confidence[box1_id] < confidence[box2_id]:
+                    keep[box1_id] = False
+                else:
+                    keep[box2_id] = False
+
+    num_keep = np.count_nonzero(keep)
+    new_decoded_bboxes = np.zeros((num_keep, 4), dtype=np.float32)
+    new_confidence     = np.zeros((num_keep,), dtype=np.float32)
+    new_class_num      = np.zeros((num_keep,), dtype=np.float32)
+    idx = 0
+    for i in range(num_boxes):
+        if keep[i] == True:
+            new_decoded_bboxes[idx] = decoded_bboxes[i]
+            new_confidence[idx]     = confidence[i]
+            new_class_num[idx]      = class_num[i]
+            idx += 1
+
+    return new_decoded_bboxes, new_confidence, new_class_num 
+
+
+# Pick prior_boxes which has higher class confidence data than threshold (conf>threshold)
+#  - Calculate class-by-class confidence for each pboxes with softmax
+#  - Pick only pboxes which have higher confidence than threshold
+def screen_out_prior_boxes(box_logits_, confidence, proposals_p, proposals_v, confidence_threshold):
+    num_prior_boxes   = box_logits_.shape[0]
+    prior_box_size    = proposals_p.shape[1]
+
+    new_box_logits  = np.array([], dtype=np.float32)
+    new_proposals_p = np.array([], dtype=np.float32)
+    new_proposals_v = np.array([], dtype=np.float32)
+
+    for pbox_idx in range(num_prior_boxes):
+        conf = confidence[pbox_idx]
+        if conf > confidence_threshold:
+            new_box_logits  = np.append(new_box_logits, box_logits_[pbox_idx, :])
+            new_proposals_p = np.append(new_proposals_p, proposals_p[pbox_idx, :])
+            new_proposals_v = np.append(new_proposals_v, proposals_v[pbox_idx, :])
+
+    new_box_logits  = new_box_logits.reshape((-1,4))
+    new_proposals_p = new_proposals_p.reshape((-1, prior_box_size))
+    new_proposals_v = new_proposals_v.reshape((-1, prior_box_size))
+
+    return new_box_logits, new_proposals_p, new_proposals_v
+
+
+def decode_bboxes(box_logits_, proposals_p, proposals_v, num_prior_boxes, n, num_loc_classes, offset, normalized, input_width, input_height, code_type, variance_encoded_in_target, clip_before_nms):
+    decoded_bboxes = np.zeros((num_prior_boxes, 4), dtype=np.float32)
+
+    for pbox_idx in range(num_prior_boxes):
+        prior_xmin = proposals_p[pbox_idx, 0 + offset]
+        prior_ymin = proposals_p[pbox_idx, 1 + offset]
+        prior_xmax = proposals_p[pbox_idx, 2 + offset]
+        prior_ymax = proposals_p[pbox_idx, 3 + offset]
+        loc_xmin = box_logits_[pbox_idx, 0]
+        loc_ymin = box_logits_[pbox_idx, 1]
+        loc_xmax = box_logits_[pbox_idx, 2]
+        loc_ymax = box_logits_[pbox_idx, 3]
+        if normalized == False:
+            prior_xmin /= input_width
+            prior_ymin /= input_height
+            prior_xmax /= input_width
+            prior_ymax /= input_height
+        if code_type=='caffe.PriorBoxParameter.CORNER':
+            if variance_encoded_in_target == True:
+                new_xmin = prior_xmin + loc_xmin
+                new_ymin = prior_ymin + loc_ymin
+                new_xmax = prior_xmax + loc_xmax
+                new_ymax = prior_ymax + loc_ymax
+            else:
+                new_xmin = prior_xmin + proposals_v[pbox_idx, 0] * loc_xmin
+                new_ymin = prior_ymin + proposals_v[pbox_idx, 1] * loc_ymin
+                new_xmax = prior_xmax + proposals_v[pbox_idx, 2] * loc_xmax
+                new_ymax = prior_ymax + proposals_v[pbox_idx, 3] * loc_ymax
+        elif code_type =='caffe.PriorBoxParameter.CENTER_SIZE':
+            prior_width  = prior_xmax - prior_xmin
+            prior_height = prior_ymax - prior_ymin
+            prior_cx     = (prior_xmin + prior_xmax) / 2
+            prior_cy     = (prior_ymin + prior_ymax) / 2
+            if variance_encoded_in_target == True:
+                decode_bbox_cx = loc_xmin * prior_width  + prior_cx
+                decode_bbox_cy = loc_ymin * prior_height + prior_cy
+                decode_bbox_width  = math.exp(loc_xmax) * prior_width
+                decode_bbox_height = math.exp(loc_ymax) * prior_height
+            else:
+                decode_bbox_cx = proposals_v[pbox_idx, 0] * loc_xmin * prior_width  + prior_cx
+                decode_bbox_cy = proposals_v[pbox_idx, 1] * loc_ymin * prior_height + prior_cy
+                decode_bbox_width  = math.exp(proposals_v[pbox_idx, 2] * loc_xmax) * prior_width
+                decode_bbox_height = math.exp(proposals_v[pbox_idx, 3] * loc_ymax) * prior_height
+            
+            new_xmin = decode_bbox_cx - decode_bbox_width  / 2
+            new_ymin = decode_bbox_cy - decode_bbox_height / 2
+            new_xmax = decode_bbox_cx + decode_bbox_width  / 2
+            new_ymax = decode_bbox_cy + decode_bbox_height / 2
+        
+        if clip_before_nms:
+            new_xmin = max(0, min(1, new_xmin))
+            new_ymin = max(0, min(1, new_ymin))
+            new_xmax = max(0, min(1, new_xmax))
+            new_ymax = max(0, min(1, new_ymax))
+
+        decoded_bboxes[pbox_idx, 0] = new_xmin
+        decoded_bboxes[pbox_idx, 1] = new_ymin
+        decoded_bboxes[pbox_idx, 2] = new_xmax
+        decoded_bboxes[pbox_idx, 3] = new_ymax
+
+    return decoded_bboxes
+
 
 def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k, variance_encoded_in_target, keep_top_k, code_type, share_location,
                                         nms_threshold, confidence_threshold, clip_after_nms, clip_before_nms, decrease_label_id, normalized,
                                         input_height, input_width, objectness_score):
-    box_logits = inputs[0]  # [ N, num_prior_boxes * num_loc_classes * 4 ]
-    class_pred = inputs[1]  # [N, num_prior_boxes * prior_box_size ]
-    proposals  = inputs[2]  # [ priors_batch_size, 1, num_prior_boxes * prior_box_size] or [priors_batch_size, 2, num_prior_boxes * prior_box_size ]
 
+    box_logits = inputs[0]  #    [ N, num_prior_boxes * num_loc_classes * 4 ]               (1,7668)    = (1, 1917*1*4)
+    class_pred = inputs[1]  #    [ N, num_prior_boxes * num_classes]                        (1, 174447) = (1, 1917*91 )
+    proposals  = inputs[2]  #    [ priors_batch_size, 1, num_prior_boxes * prior_box_size ] 
+                            # or [ priors_batch_size, 2, num_prior_boxes * prior_box_size ] (1, 2, 7668) = (1, 2, 1917*4)  box_proposals[ cx, cy, w, h ]
+                            #  Size of the second dimension depends on variance_encoded_in_target. If variance_encoded_in_target is equal to 0, 
+                            # the second dimension equals to 2 and variance values are provided for each boxes coordinates. If variance_encoded_in_target is 
+                            # equal to 1, the second dimension equals to 1 and this tensor contains proposals boxes only.
+                            #  prior_box_size is equal to 4 when normalized is set to 1 or it’s equal to 5 otherwise.
+
+    assert proposals.shape[1] == 2
+                                                                         # memo for debug
+    N = box_logits.shape[0]                                              # 1
+    priors_batch_size = proposals.shape[0]                               # 1
+    prior_box_size = 4 if normalized == True else 5                      # 4
+    num_prior_boxes = int(proposals.shape[2] / prior_box_size)           # 1917
+    num_loc_classes = num_classes if share_location==False else 1        # 1
+    proposals_2nd_dim = 2 if variance_encoded_in_target == False else 1  # 2
+    offset = 0 if normalized == True else 1
+
+    assert N == 1
+    assert num_loc_classes == 1
+
+    box_logits_  = box_logits.reshape((num_prior_boxes, 4))
+    class_pred_  = class_pred.reshape((num_prior_boxes, num_classes))
+    proposals_p  = proposals[:,0,:].reshape((num_prior_boxes, prior_box_size))
+    proposals_v  = proposals[:,1,:].reshape((num_prior_boxes, prior_box_size))
+
+    # Calculate the best confidence value and class id for each prior box
+    class_num = np.zeros((num_prior_boxes,), dtype=np.float32)
+    confidence = np.zeros((num_prior_boxes,), dtype=np.float32)
+    for pbox_idx in range(num_prior_boxes):
+        pred = class_pred_[pbox_idx,:]
+        #softmax = np.exp(pred)/np.sum(np.exp(pred))
+        m = np.argsort(pred)[::-1]
+        class_num[pbox_idx] = m[0]
+        confidence[pbox_idx] = pred[m[0]]
+
+    result = screen_out_prior_boxes(box_logits_, confidence, proposals_p, proposals_v, confidence_threshold)
+    new_box_logits, new_proposals_p, new_proposals_v = result
+    new_num_prior_boxes = len(new_box_logits)
+
+    # decoded_boxes = [ num_prior_boxes, 4 ] (xmin, ymin, xmax, ymax)
+    decoded_bboxes = decode_bboxes(new_box_logits, new_proposals_p, new_proposals_v, new_num_prior_boxes, 0, num_loc_classes, offset, normalized,
+                                    input_width, input_height, code_type, variance_encoded_in_target, clip_before_nms)
+
+
+    #if clip_after_nms == True:
+    #    clip_bounding_boxes
+    if decrease_label_id == True:
+        result = nms(decoded_bboxes, class_num, confidence, nms_threshold)
+        decoded_bboxes, confidence, class_num = result
+    else:
+        result = nms(decoded_bboxes, class_num, confidence, nms_threshold)
+        decoded_bboxes, confidence, class_num = result
+    #if normalized == False:
+    #    normalize_boxes(input_height, input_width)
+
+
+    # Calculate output shape
+    output_shape = (1, 1, N * num_classes * num_prior_boxes, 7)
+    if keep_top_k[0] > 0:
+        output_shape = (1, 1, N * keep_top_k[0], 7)
+    elif keep_top_k[0] == -1:
+        if top_k > 0:
+            output_shape = (1, 1, N * top_k * num_classes, 7)
+
+    res = np.zeros(output_shape, dtype=np.float32)
+
+    num_bboxes = len(decoded_bboxes)
+    for n in range(num_bboxes):
+        class_id   = class_num[n]
+        conf       = confidence[n]
+        xmin     = decoded_bboxes[n][0]
+        ymin     = decoded_bboxes[n][1]
+        xmax     = decoded_bboxes[n][2]
+        ymax     = decoded_bboxes[n][3]
+        record = np.array([n, class_id, conf, xmin, ymin, xmax, ymax], dtype=np.float32)
+        res[0, 0, n, :] = record
+
+    # Add record terminator
+    max_record = res.shape[2]
+    if num_bboxes < max_record:
+        record = np.array([-1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
+        res[0, 0, num_bboxes, :] = record
 
     return res
 
@@ -90,8 +277,6 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
 
     output_port_id = next(iter(node['output']))     # Get output port number
     res = { output_port_id:res }
-    print('*'*40, 'Implementation has not completed yet (WIP)')
-    assert False
     return res
 
 # {'name': 'DetectionOutput', 'type': 'DetectionOutput', 'version': 'opset1', 
