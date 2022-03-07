@@ -31,79 +31,90 @@ def run_test(model:str, input_data, kernel_type, niter:int=1):
     return res[output_node_name]
 
 
-kernel_types = [ 'special', 'numpy' ]
-kernel_types += [ 'naive' ]
 
 #---------------------------------------------------------------
 # MNIST
 
-cv2img = cv2.imread('resources/mnist2.png')
+def test_mnist():
+    cv2img = cv2.imread('resources/mnist2.png')
 
-# Display read image
-disp_img = cv2.resize(cv2img, (0, 0), fx=4, fy=4)
-cv2.imshow('input image', disp_img)
-cv2.waitKey(1*1000)
-cv2.destroyAllWindows()
+    # Display read image
+    disp_img = cv2.resize(cv2img, (0, 0), fx=4, fy=4)
+    cv2.imshow('input image', disp_img)
+    cv2.waitKey(1*1000)
+    cv2.destroyAllWindows()
 
-# Read an image file to infer
-cv2img = cv2.imread('resources/mnist2.png')
-inblob = cv2.split(cv2img)[0]
-inblob = inblob.reshape(1,1,28,28).astype(np.float32)
+    # Read an image file to infer
+    cv2img = cv2.imread('resources/mnist2.png')
+    inblob = cv2.split(cv2img)[0]
+    inblob = inblob.reshape(1,1,28,28).astype(np.float32)
 
-model = 'models/mnist'
-for kernel_type in kernel_types:
-    res = run_test(model, inblob, kernel_type, niter=1)
-    m = np.argsort(res[0])[::-1]    # Sort results
-    print('Result:', m[:10])
-    assert m[0]==2 and m[1]==0 and m[2]==1
-    print()
+    model = 'models/mnist'
+    for kernel_type in kernel_types:
+        res = run_test(model, inblob, kernel_type, niter=1)
+        m = np.argsort(res[0])[::-1]    # Sort results
+        print('Result:', m[:10])
+        assert m[0]==2 and m[1]==0 and m[2]==1
+        print()
 
 
 #---------------------------------------------------------------
 # MNIST_BN (BatchNorm)
 
-cv2img = cv2.imread('resources/mnist2.png')
+def test_mnist_bn():
+    cv2img = cv2.imread('resources/mnist2.png')
 
-# Display read image
-disp_img = cv2.resize(cv2img, (0, 0), fx=4, fy=4)
-cv2.imshow('input image', disp_img)
-cv2.waitKey(1*1000)
-cv2.destroyAllWindows()
+    # Display read image
+    disp_img = cv2.resize(cv2img, (0, 0), fx=4, fy=4)
+    cv2.imshow('input image', disp_img)
+    cv2.waitKey(1*1000)
+    cv2.destroyAllWindows()
 
-# Read an image file to infer
-cv2img = cv2.imread('resources/mnist2.png')
-inblob = cv2.split(cv2img)[0]
-inblob = inblob.reshape(1,1,28,28).astype(np.float32)
+    # Read an image file to infer
+    cv2img = cv2.imread('resources/mnist2.png')
+    inblob = cv2.split(cv2img)[0]
+    inblob = inblob.reshape(1,1,28,28).astype(np.float32)
 
-model = 'models/mnist_bn'
-for kernel_type in kernel_types:
-    res = run_test(model, inblob, kernel_type, niter=1)
-    m = np.argsort(res[0])[::-1]    # Sort results
-    print('Result:', m[:10])
-    assert m[0]==2 and m[1]==8 and m[2]==7
-    print()
+    model = 'models/mnist_bn'
+    for kernel_type in kernel_types:
+        res = run_test(model, inblob, kernel_type, niter=1)
+        m = np.argsort(res[0])[::-1]    # Sort results
+        print('Result:', m[:10])
+        assert m[0]==2 and m[1]==8 and m[2]==7
+        print()
 
 
 #---------------------------------------------------------------
 # Googlenet-v1
 
-cv2img = cv2.imread('resources/guinea-pig.jpg')
+def test_googlenet_v1():
+    cv2img = cv2.imread('resources/guinea-pig.jpg')
 
-# Display read image
-disp_img = cv2.resize(cv2img, (300, 300))
-cv2.imshow('input image', disp_img)
-cv2.waitKey(1*1000)
-cv2.destroyAllWindows()
+    # Display read image
+    disp_img = cv2.resize(cv2img, (300, 300))
+    cv2.imshow('input image', disp_img)
+    cv2.waitKey(1*1000)
+    cv2.destroyAllWindows()
 
-inblob = cv2.resize(cv2img, (224,224))
-inblob = inblob.transpose((2,0,1))
-inblob = inblob.reshape(1,3,224,224).astype(np.float32)
+    inblob = cv2.resize(cv2img, (224,224))
+    inblob = inblob.transpose((2,0,1))
+    inblob = inblob.reshape(1,3,224,224).astype(np.float32)
 
-model = 'models/googlenet-v1'
-for kernel_type in kernel_types:
-    res = run_test(model, inblob, kernel_type, niter=1)
-    m = np.argsort(res[0])[::-1]    # Sort results
-    print('Result:', m[:10])
-    assert m[0]==338 and m[1]==359 and m[2]==358
-    print()
+    model = 'models/googlenet-v1'
+    for kernel_type in kernel_types:
+        res = run_test(model, inblob, kernel_type, niter=1)
+        m = np.argsort(res[0])[::-1]    # Sort results
+        print('Result:', m[:10])
+        assert m[0]==338 and 359 in m[:3] and 358 in m[:3]
+        print()
 
+#---------------------------------------------------------------
+
+kernel_types = [ 'special', 'numpy' ]
+kernel_types += [ 'naive' ]
+
+test_mnist()
+test_mnist_bn()
+test_googlenet_v1()
+
+print('Integrity test completed')
