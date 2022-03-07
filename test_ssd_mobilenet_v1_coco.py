@@ -28,7 +28,7 @@ cv2.waitKey(1*1000)
 cv2.destroyAllWindows()
 
 exenet.kernel_type = 'numpy'    # Set kernel implementation type ('naive', 'numpy' or 'special')
-
+exenet.pickle_node_args = [ 6, 8, 364 ]
 atime = 0
 nitr = 1
 

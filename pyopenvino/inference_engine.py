@@ -7,6 +7,7 @@ import struct
 import glob
 import importlib
 import time
+import pickle
 
 import numpy as np
 
@@ -210,6 +211,7 @@ class Executable_Network:
         self.ienet = ienetwork
         self.expected_result = None     # { 'inception_5a/pool': ['FP16', ['1', '832', '7', '7'], array([[[[ 0.6244107 ,  0.6244107 ,
         self.kernel_type = 'naive'      # 'naive' or 'numpy'
+        self.pickle_node_args = []      # List of node ids. Save node input arguments in pickle format for node unit testing
 
     def schedule_tasks(self):
         # Check if required data are ready to run the node
@@ -268,8 +270,10 @@ class Executable_Network:
                 sys.exit(-1)
             if verbose:
                 print('{}, {}, {}, '.format(task, node_name, node_type), end=' ', flush=True)
-            if task == 180: # Probe point for debugging - No functional meaning
-                dummy_debug_probe_point = True
+            if task in self.pickle_node_args:           # DEBUG: Save node args for node unit test
+                with open('node_args_{}.pickle'.format(task), 'wb') as f:
+                    save = (node, inputs)
+                    pickle.dump(save, file=f)
             stime = time.time()
             res = p.plugins[node_type].compute(node, inputs, kernel_type=self.kernel_type, debug=False)  # Run a task (op)
             etime = time.time()
