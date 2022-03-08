@@ -153,5 +153,8 @@ The kernel type can be specified with `Executable_Network.kernel_type` attribute
 ## Tested DL Models  
 - MNIST (Conv+FC+SoftMax)
 - Googlenet-v1
+- ssd-mobilenet-v1
+
+![resources/ssd_mobilenet_v1.png](resources/ssd_mobilenet_v1.png)
 
 END
