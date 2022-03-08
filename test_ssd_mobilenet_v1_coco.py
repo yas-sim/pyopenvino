@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from pyopenvino.inference_engine import IECore
 
-model = 'public/ssd_mobilenet_v1_coco/FP16/ssd_mobilenet_v1_coco'
+model = 'public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco'
 
 ie = IECore()                                        # Create core object
 net = ie.read_network(model+'.xml', model+'.bin')    # Read model file
@@ -28,7 +28,6 @@ cv2.waitKey(1*1000)
 cv2.destroyAllWindows()
 
 exenet.kernel_type = 'numpy'    # Set kernel implementation type ('naive', 'numpy' or 'special')
-exenet.pickle_node_args = [ 6, 8, 364 ]
 atime = 0
 nitr = 1
 
@@ -41,6 +40,16 @@ for i in range(nitr):
 
 print(atime/nitr, 'sec/inf')
 
-#print('Raw result:', res)
-m = np.argsort(res[output_node_name][0])[::-1]    # Sort results
-print('Result:', m[:10])
+img_h, img_w = cv2img.shape[:1+1]
+for record in res['detection_boxes:0'].reshape(100,7):
+    n, class_id, conf, xmin, ymin, xmax, ymax = record
+    if conf>0.5:
+        x0 = int(xmin * img_w)
+        y0 = int(ymin * img_h)
+        x1 = int(xmax * img_w)
+        y1 = int(ymax * img_h)
+        cv2.rectangle(cv2img, (x0, y0), (x1, y1), (255,255,0), 2)
+        cv2.putText(cv2img, str(class_id), (x0, y0), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,255), 2)
+
+cv2.imshow('result', cv2img)
+cv2.waitKey(0)

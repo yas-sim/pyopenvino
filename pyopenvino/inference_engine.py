@@ -125,9 +125,11 @@ class IENetwork:
         layers = root.findall('./layers/layer')
         for layer in layers:
             dict_layer = {}
-            layer_id = layer.attrib['id']
+            layer_id = int(layer.attrib['id'])
             dict_layer = { key:val for key, val in layer.attrib.items() if key!='id' }
             data = layer.find('data')
+            if layer_id == 364:
+                dummy_debug_probe = True        # DEBUG: Debug probing point. No functional meaning.
             if data is not None:
                 dict_layer['data'] = data.attrib
                 if 'shape' in dict_layer['data']:
@@ -158,7 +160,7 @@ class IENetwork:
                     for dim in dims:
                         list_dims.append(int(dim.text))
                     dict_layer['output'][int(port_id)] = { 'precision': port_prec, 'dims':tuple(list_dims) }
-            dict_layers[int(layer_id)] = dict_layer
+            dict_layers[layer_id] = dict_layer
 
         list_edges = []
         edges = root.findall('./edges/edge')
@@ -269,7 +271,7 @@ class Executable_Network:
                 print('ERROR: Operation \'{}\' (node={}) is not supported.'.format(node_type, node_name))
                 sys.exit(-1)
             if verbose:
-                print('{}, {}, {}, '.format(task, node_name, node_type), end=' ', flush=True)
+                print('{}, {}, {}, '.format(task, node_type, node_name), end=' ', flush=True)
             if task in self.pickle_node_args:           # DEBUG: Save node args for node unit test
                 with open('node_args_{}.pickle'.format(task), 'wb') as f:
                     save = (node, inputs)
@@ -282,7 +284,7 @@ class Executable_Network:
             if self.expected_result is not None:
                 if node_name in self.expected_result:
                     out_id, out_data = next(iter(res.items()))
-                    common_def.compare_results(node_name=node_name, result=out_data, GT=self.expected_result)
+                    common_def.compare_results(node_name=node_name, result=out_data, GT=self.expected_result, disp_results=False)
 
             # Set computation result to output ports
             if len(res)>0:

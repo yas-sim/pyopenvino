@@ -64,7 +64,7 @@ def print_dict(dic:dict, indent_level=0, indent_step=4):
 
 
 # DEBUG: Compare data for accuracy checking (with a pre-generated dict data {'node-name': np.array(featmap), ...})
-def compare_results(node_name:str, result:np.array, GT:dict):
+def compare_results(node_name:str, result:np.array, GT:dict, disp_results:bool=False):
     rtol = 1
     if node_name not in GT:
         print('{} : Skipped'.format(node_name))
@@ -85,15 +85,16 @@ def compare_results(node_name:str, result:np.array, GT:dict):
             if abs(c-d)/c > 0.1:
                 print(c, d)
         '''
-        print(np.isclose(result, GT_data, rtol=rtol))
-        print(np.count_nonzero(np.where(np.isclose(result, GT_data), 1, 0)))
-        print('* Result')
-        #disp_result(result)
-        print(result)
-        print('* GT')
-        #disp_result(GT_data)
-        print(GT_data)
-        assert False
+        if disp_results == True:
+            #print(np.isclose(result, GT_data, rtol=rtol))
+            print(np.count_nonzero(np.where(np.isclose(result, GT_data), 1, 0)))
+            print('* Result')
+            #disp_result(result)
+            print(result)
+            print('* GT')
+            #disp_result(GT_data)
+            print(GT_data)
+            #assert False
 
 
 # DEBUG: Display np.ndarray data for debug purpose

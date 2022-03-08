@@ -1,4 +1,5 @@
 # Convolution
+from ctypes.wintypes import DWORD
 import math
 import common_def
 import numpy as np
@@ -54,9 +55,11 @@ def calc_output_shape(input_dim:tuple, kernel_dim:tuple, strides:tuple, pads_beg
 # https://github.com/oreilly-japan/deep-learning-from-scratch
 
 def im2col(input, kh, kw, oh, ow, strides, pads_begin, pads_end):
+    pbh, pbw       = pads_begin
+    peh, pew       = pads_end
     n, c, h, w = input.shape
 
-    img = np.pad(input, [(0,0), (0,0), (pads_begin[1], pads_begin[0]), (pads_end[1], pads_end[0])], 'constant')
+    img = np.pad(input, [(0,0), (0,0), (pbh, pbw), (pbw, pew)], 'constant')
     col = np.zeros((n, c, kh, kw, oh, ow), dtype=np.float32)
 
     for y in range(kh):
@@ -74,8 +77,6 @@ def kernel_Convolution_im2col(inputs, strides, dilation, pads_begin, pads_end, a
     n, c, h, w     = input.shape   # Input image
     kn, kc, kh, kw = kernel.shape  # Kernel
     sh, sw         = strides
-    pb0, pb1       = pads_begin
-    pe0, pe1       = pads_end
 
     # output feature map size
     oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
@@ -95,13 +96,14 @@ def kernel_Convolution_numpy(inputs, strides, dilation, pads_begin, pads_end, au
     n, c, h, w     = input.shape   # Input image
     kn, kc, kh, kw = kernel.shape  # Kernel
     sh, sw         = strides
-    pb0, pb1       = pads_begin
-    pe0, pe1       = pads_end
+    pbh, pbw       = pads_begin
+    peh, pew       = pads_end
+    dh, dw         = dilation
 
     # output feature map size
     oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
-    input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
+    input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, kn, oh, ow), dtype=np.float32)
 
     n, c, h, w     = input.shape   # Input image (padded)
@@ -109,7 +111,7 @@ def kernel_Convolution_numpy(inputs, strides, dilation, pads_begin, pads_end, au
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
             for dx in range(ow):
-                patch = input[0, :, dy*sh:min(h, dy*sh+kh), dx*sw:min(w, dx*sw+kw)]
+                patch = input[0, :, dy*sh:dy*sh+kh:dh, dx*sw:dx*sw+kw:dw]
                 output[0, fc, dy, dx] = np.sum(patch*kernel[fc])
     return output
 
@@ -121,13 +123,14 @@ def kernel_Convolution_naive(inputs, strides, dilation, pads_begin, pads_end, au
     n, c, h, w     = input.shape   # Input image
     kn, kc, kh, kw = kernel.shape  # Kernel
     sh, sw         = strides
-    pb0, pb1       = pads_begin
-    pe0, pe1       = pads_end
+    pbh, pbw       = pads_begin
+    peh, pew       = pads_end
+    dh, dw         = dilation
 
     # output feature map size
     oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
-    input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
+    input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, kn, oh, ow), dtype=np.float32)
 
     n, c, h, w     = input.shape   # Input image (padded)
@@ -139,7 +142,7 @@ def kernel_Convolution_naive(inputs, strides, dilation, pads_begin, pads_end, au
                     for fy in range(kh):
                         for fx in range(kw):
                             flt = kernel[fc, cc, fy, fx]
-                            dt  = input[0, cc, dy*sh+fy, dx*sw+fx]
+                            dt  = input[0, cc, dy*sh+fy*dh, dx*sw+fx*dw]
                             output[0, fc, dy, dx] += flt * dt
     return output
 

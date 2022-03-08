@@ -1,4 +1,5 @@
 # GroupConvolution
+from ctypes.wintypes import DWORD
 import math
 import common_def
 import numpy as np
@@ -50,18 +51,19 @@ def calc_output_shape_group_conv(input_dim:tuple, kernel_dim:tuple, strides:tupl
 
 
 def kernel_GroupConvolution_numpy(inputs, strides, dilation, pads_begin, pads_end, auto_pad):
-    input                   = inputs[0]      # [N, GROUPS * C_IN, Y, X]
-    kernel                  = inputs[1]      # [GROUPS, C_OUT, C_IN, Y, X]
+    input                   = inputs[0]      # [N, GROUPS * C_IN, Y, X]  1,32,150,150
+    kernel                  = inputs[1]      # [GROUPS, C_OUT, C_IN, Y, X]  32,1,1,3,3
     n, c, h, w              = input.shape
     grp, ch_o, ch_i, kh, kw = kernel.shape
     sh, sw                  = strides
-    pb0, pb1                = pads_begin
-    pe0, pe1                = pads_end
+    pbh, pbw                = pads_begin
+    peh, pew                = pads_end
+    dh, dw                  = dilation
 
     # output feature map size
     oh, ow = calc_output_shape_group_conv((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
-    input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
+    input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, grp*ch_o, oh, ow), dtype=input.dtype)    # [ N, GROUPS * C_OUT, Y, X ]
 
     n, c, h, w     = input.shape   # Input image (padded)
@@ -71,8 +73,9 @@ def kernel_GroupConvolution_numpy(inputs, strides, dilation, pads_begin, pads_en
             for co in range(ch_o):
                 for dy in range(oh):
                     for dx in range(ow):
-                        patch = input[0, ci*gp, dy*sh:min(h, dy*sh+kh), dx*sw:min(w, dx*sw+kw)]
-                        output[0, gp*co, dy, dx] = np.sum(patch*kernel[gp, co, ci, :, :])
+                        flt = kernel[gp, co, ci, :, :]
+                        patch = input[0, gp*ci+gp, dy*sh:dy*sh+kh, dx*sw:dx*sw+kw]
+                        output[0, gp*co+gp, dy, dx] = np.sum(patch*flt)
     return output
 
 # ---------------------------------------------------------------------------------------
@@ -83,13 +86,14 @@ def kernel_GroupConvolution_naive(inputs, strides, dilation, pads_begin, pads_en
     n, c, h, w              = input.shape
     grp, ch_o, ch_i, kh, kw = kernel.shape
     sh, sw                  = strides
-    pb0, pb1                = pads_begin
-    pe0, pe1                = pads_end
+    pbh, pbw                = pads_begin
+    peh, pew                = pads_end
+    dh, dw                  = dilation
 
     # output feature map size
     oh, ow = calc_output_shape_group_conv((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
-    input = np.pad(input, [(0,0), (0,0), (pb0, pe0), (pb1, pe1)], 'constant')
+    input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, grp*ch_o, oh, ow), dtype=input.dtype)    # [ N, GROUPS * C_OUT, Y, X ]
 
     n, c, h, w     = input.shape   # Input image (padded)
@@ -101,13 +105,12 @@ def kernel_GroupConvolution_naive(inputs, strides, dilation, pads_begin, pads_en
                     for dx in range(ow):
                         for fy in range(kh):
                             for fx in range(kw):
-                                flt = kernel[gp, ch_o, ch_i, fy, fx]
-                                dt  = input[0, gp*ci, dy*sh+fy, dx*sw+fx]
-                                output[0, gp*co, dy, dx] += flt * dt
+                                flt = kernel[gp, co, ci, fy, fx]
+                                dt  = input[0, gp*ci+gp, dy*sh+fy*dh, dx*sw+fx*dw]
+                                output[0, gp*co+gp, dy, dx] += flt * dt
     return output
 
 # ---------------------------------------------------------------------------------------
-
 def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
     if debug:
         print(node)

@@ -13,10 +13,10 @@ def iou(a, b):
     area_a = (a[2] - a[0]) * (a[3] - a[1])
     area_b = (b[2] - b[0]) * (b[3] - b[1])
 
-    iou_x1 = np.max(a[0], b[0])
-    iou_y1 = np.max(a[1], b[1])
-    iou_x2 = np.min(a[2], b[2])
-    iou_y2 = np.min(a[3], b[3])
+    iou_x1 = max(a[0], b[0])
+    iou_y1 = max(a[1], b[1])
+    iou_x2 = min(a[2], b[2])
+    iou_y2 = min(a[3], b[3])
 
     iou_w = iou_x2 - iou_x1
     iou_h = iou_y2 - iou_y1
@@ -29,20 +29,34 @@ def iou(a, b):
 
     return iou
 
+import cv2
 
-def nms(decoded_bboxes, class_num, confidence, nms_threshold):
-
+def nms(decoded_bboxes, class_num, confidence, nms_threshold, draw_rectangles=False):
     num_boxes = decoded_bboxes.shape[0]
-
     keep = [ True ] * num_boxes
     for box1_id, box1 in enumerate(decoded_bboxes[:-2]):
         for box2_id, box2 in enumerate(decoded_bboxes[box1_id+1:]):
-            iou_val = iou(box1, box2)
+            if draw_rectangles:
+                canvas = np.zeros((300,300,3))
+            iou_val = iou(box1, box2) 
             if iou_val > nms_threshold:
+                if draw_rectangles:
+                    cv2.rectangle(canvas, (int(box1[0]*300), int(box1[1]*300)), (int(box1[2]*300), int(box1[3]*300)), (0,0,255), 2)
+                    cv2.rectangle(canvas, (int(box2[0]*300), int(box2[1]*300)), (int(box2[2]*300), int(box2[3]*300)), (0,0,255), 4)
+                    cv2.imshow('result', canvas)
+                    cv2.waitKey(100)
                 if confidence[box1_id] < confidence[box2_id]:
                     keep[box1_id] = False
                 else:
                     keep[box2_id] = False
+            else:
+                if draw_rectangles:
+                    cv2.rectangle(canvas, (int(box1[0]*300), int(box1[1]*300)), (int(box1[2]*300), int(box1[3]*300)), (0,255,0), 2)
+                    cv2.rectangle(canvas, (int(box2[0]*300), int(box2[1]*300)), (int(box2[2]*300), int(box2[3]*300)), (0,255,0), 4)
+                    cv2.imshow('result', canvas)
+                    cv2.waitKey(10)
+    #if draw_rectangles:
+    #    cv2.destroyAllWindows()
 
     num_keep = np.count_nonzero(keep)
     new_decoded_bboxes = np.zeros((num_keep, 4), dtype=np.float32)
@@ -62,26 +76,32 @@ def nms(decoded_bboxes, class_num, confidence, nms_threshold):
 # Pick prior_boxes which has higher class confidence data than threshold (conf>threshold)
 #  - Calculate class-by-class confidence for each pboxes with softmax
 #  - Pick only pboxes which have higher confidence than threshold
-def screen_out_prior_boxes(box_logits_, confidence, proposals_p, proposals_v, confidence_threshold):
+def screen_out_prior_boxes(confidence, class_num, box_logits_,  proposals_p, proposals_v, confidence_threshold):
     num_prior_boxes   = box_logits_.shape[0]
     prior_box_size    = proposals_p.shape[1]
 
     new_box_logits  = np.array([], dtype=np.float32)
     new_proposals_p = np.array([], dtype=np.float32)
     new_proposals_v = np.array([], dtype=np.float32)
+    new_class_num   = np.array([], dtype=np.float32)
+    new_confidence  = np.array([], dtype=np.float32)
 
     for pbox_idx in range(num_prior_boxes):
+        clsid = class_num[pbox_idx]
         conf = confidence[pbox_idx]
         if conf > confidence_threshold:
-            new_box_logits  = np.append(new_box_logits, box_logits_[pbox_idx, :])
-            new_proposals_p = np.append(new_proposals_p, proposals_p[pbox_idx, :])
-            new_proposals_v = np.append(new_proposals_v, proposals_v[pbox_idx, :])
+            if clsid != 0:          # reject background
+                new_box_logits  = np.append(new_box_logits, box_logits_[pbox_idx, :])
+                new_proposals_p = np.append(new_proposals_p, proposals_p[pbox_idx, :])
+                new_proposals_v = np.append(new_proposals_v, proposals_v[pbox_idx, :])
+                new_confidence  = np.append(new_confidence, conf)
+                new_class_num   = np.append(new_class_num, clsid)
 
     new_box_logits  = new_box_logits.reshape((-1,4))
     new_proposals_p = new_proposals_p.reshape((-1, prior_box_size))
     new_proposals_v = new_proposals_v.reshape((-1, prior_box_size))
 
-    return new_box_logits, new_proposals_p, new_proposals_v
+    return new_confidence, new_class_num, new_box_logits, new_proposals_p, new_proposals_v
 
 
 def decode_bboxes(box_logits_, proposals_p, proposals_v, num_prior_boxes, n, num_loc_classes, offset, normalized, input_width, input_height, code_type, variance_encoded_in_target, clip_before_nms):
@@ -133,18 +153,20 @@ def decode_bboxes(box_logits_, proposals_p, proposals_v, num_prior_boxes, n, num
             new_xmax = decode_bbox_cx + decode_bbox_width  / 2
             new_ymax = decode_bbox_cy + decode_bbox_height / 2
         
-        if clip_before_nms:
-            new_xmin = max(0, min(1, new_xmin))
-            new_ymin = max(0, min(1, new_ymin))
-            new_xmax = max(0, min(1, new_xmax))
-            new_ymax = max(0, min(1, new_ymax))
-
         decoded_bboxes[pbox_idx, 0] = new_xmin
         decoded_bboxes[pbox_idx, 1] = new_ymin
         decoded_bboxes[pbox_idx, 2] = new_xmax
         decoded_bboxes[pbox_idx, 3] = new_ymax
 
     return decoded_bboxes
+
+
+def clip_bounding_boxes(bboxes):
+    for bbox in bboxes:
+        bbox[0] = max(0, min(1, bbox[0]))
+        bbox[1] = max(0, min(1, bbox[1]))
+        bbox[2] = max(0, min(1, bbox[2]))
+        bbox[3] = max(0, min(1, bbox[3]))
 
 
 def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k, variance_encoded_in_target, keep_top_k, code_type, share_location,
@@ -185,26 +207,31 @@ def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k
         pred = class_pred_[pbox_idx,:]
         #softmax = np.exp(pred)/np.sum(np.exp(pred))
         m = np.argsort(pred)[::-1]
-        class_num[pbox_idx] = m[0]
-        confidence[pbox_idx] = pred[m[0]]
+        class_num[pbox_idx] = m[0]          # class id
+        confidence[pbox_idx] = pred[m[0]]   # confidence value
 
-    result = screen_out_prior_boxes(box_logits_, confidence, proposals_p, proposals_v, confidence_threshold)
-    new_box_logits, new_proposals_p, new_proposals_v = result
+    result = screen_out_prior_boxes(confidence, class_num, box_logits_, proposals_p, proposals_v, confidence_threshold)
+    confidence, class_num, new_box_logits, new_proposals_p, new_proposals_v = result
     new_num_prior_boxes = len(new_box_logits)
 
-    # decoded_boxes = [ num_prior_boxes, 4 ] (xmin, ymin, xmax, ymax)
+
     decoded_bboxes = decode_bboxes(new_box_logits, new_proposals_p, new_proposals_v, new_num_prior_boxes, 0, num_loc_classes, offset, normalized,
                                     input_width, input_height, code_type, variance_encoded_in_target, clip_before_nms)
 
+    if clip_before_nms == True:
+        clip_bounding_boxes(decoded_bboxes)
 
-    #if clip_after_nms == True:
-    #    clip_bounding_boxes
     if decrease_label_id == True:
         result = nms(decoded_bboxes, class_num, confidence, nms_threshold)
         decoded_bboxes, confidence, class_num = result
     else:
         result = nms(decoded_bboxes, class_num, confidence, nms_threshold)
         decoded_bboxes, confidence, class_num = result
+
+    if clip_after_nms == True:
+        clip_bounding_boxes(decoded_bboxes)
+
+    assert normalized == True
     #if normalized == False:
     #    normalize_boxes(input_height, input_width)
 
@@ -219,19 +246,23 @@ def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k
 
     res = np.zeros(output_shape, dtype=np.float32)
 
+    sorted_idx = np.argsort(confidence)[::-1]    # High -> Low order
+
     num_bboxes = len(decoded_bboxes)
-    for n in range(num_bboxes):
-        class_id   = class_num[n]
-        conf       = confidence[n]
-        xmin     = decoded_bboxes[n][0]
-        ymin     = decoded_bboxes[n][1]
-        xmax     = decoded_bboxes[n][2]
-        ymax     = decoded_bboxes[n][3]
+    max_record = res.shape[2]
+
+    for n in range(min(max_record, num_bboxes)):
+        idx = sorted_idx[n]
+        class_id   = class_num[idx]
+        conf       = confidence[idx]
+        xmin     = decoded_bboxes[idx][0]
+        ymin     = decoded_bboxes[idx][1]
+        xmax     = decoded_bboxes[idx][2]
+        ymax     = decoded_bboxes[idx][3]
         record = np.array([n, class_id, conf, xmin, ymin, xmax, ymax], dtype=np.float32)
         res[0, 0, n, :] = record
 
     # Add record terminator
-    max_record = res.shape[2]
     if num_bboxes < max_record:
         record = np.array([-1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
         res[0, 0, num_bboxes, :] = record
@@ -244,7 +275,6 @@ def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k
 
 
 def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=False):
-    debug = True
     if debug:
         print(node)
 
