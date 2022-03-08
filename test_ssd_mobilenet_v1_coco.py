@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from pyopenvino.inference_engine import IECore
 
-model = 'public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco'
+model = 'models/ssd_mobilenet_v1_coco'
 
 ie = IECore()                                        # Create core object
 net = ie.read_network(model+'.xml', model+'.bin')    # Read model file
