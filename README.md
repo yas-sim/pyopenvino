@@ -12,6 +12,12 @@ Supported API is quite limited, but it mimics OpenVINO IE Python API. So, you ca
 - Extensible ops: Ops are implemented as plugins. You can easily add your ops as needed.  
 - MNIST CNN and Googlenet-v1 are working.  
 
+### Tested DL Models  
+- MNIST (Conv+FC+SoftMax)
+- Googlenet-v1
+- ssd-mobilenet-v1
+![resources/ssd_mobilenet_v1.png](resources/ssd_mobilenet_v1.png)
+
 ------------------------
 
 ## How to run
@@ -54,29 +60,7 @@ StatefulPartitionedCall/sequential/conv2d/BiasAdd/ReadVariableOp Const, 0.0
 StatefulPartitionedCall/sequential/conv2d/BiasAdd/Add Add, 0.0
 StatefulPartitionedCall/sequential/conv2d/Relu ReLU, 0.0010142326354980469
 StatefulPartitionedCall/sequential/max_pooling2d/MaxPool MaxPool, 0.020931482315063477
-StatefulPartitionedCall/sequential/conv2d_1/Conv2D/ReadVariableOp Const, 0.0
-StatefulPartitionedCall/sequential/conv2d_1/Conv2D Convolution, 0.04333162307739258
-StatefulPartitionedCall/sequential/conv2d_1/BiasAdd/ReadVariableOp Const, 0.0
-StatefulPartitionedCall/sequential/conv2d_1/BiasAdd/Add Add, 0.0
-StatefulPartitionedCall/sequential/conv2d_1/Relu ReLU, 0.0
-StatefulPartitionedCall/sequential/max_pooling2d_1/MaxPool MaxPool, 0.006029367446899414
-StatefulPartitionedCall/sequential/target_conv_layer/Conv2D/ReadVariableOp Const, 0.0010688304901123047
-StatefulPartitionedCall/sequential/target_conv_layer/Conv2D Convolution, 0.004073381423950195
-StatefulPartitionedCall/sequential/target_conv_layer/BiasAdd/ReadVariableOp Const, 0.0
-StatefulPartitionedCall/sequential/target_conv_layer/BiasAdd/Add Add, 0.0
-StatefulPartitionedCall/sequential/target_conv_layer/Relu ReLU, 0.0
-StatefulPartitionedCall/sequential/target_conv_layer/Relu/Transpose/value6071024 Const, 0.0
-StatefulPartitionedCall/sequential/target_conv_layer/Relu/Transpose Transpose, 0.0
-StatefulPartitionedCall/sequential/flatten/Const Const, 0.0
-StatefulPartitionedCall/sequential/flatten/Reshape Reshape, 0.0
-StatefulPartitionedCall/sequential/dense/MatMul/ReadVariableOp Const, 0.0010004043579101562
-StatefulPartitionedCall/sequential/dense/MatMul MatMul, 0.0013704299926757812
-StatefulPartitionedCall/sequential/dense/BiasAdd/ReadVariableOp Const, 0.0
-StatefulPartitionedCall/sequential/dense/BiasAdd/Add Add, 0.0
-StatefulPartitionedCall/sequential/dense/Relu ReLU, 0.0
-StatefulPartitionedCall/sequential/dense_1/MatMul/ReadVariableOp Const, 0.0
-StatefulPartitionedCall/sequential/dense_1/MatMul MatMul, 0.0
-StatefulPartitionedCall/sequential/dense_1/BiasAdd/ReadVariableOp Const, 0.0
+          :
 StatefulPartitionedCall/sequential/dense_1/BiasAdd/Add Add, 0.0
 StatefulPartitionedCall/sequential/dense_1/Softmax SoftMax, 0.0009992122650146484
 Func/StatefulPartitionedCall/output/_11:0 Result, 0.0
@@ -149,12 +133,5 @@ The op needs to calculate the result from the input data and return it as a Pyth
 Not all, but some Ops have dual kernel implementation, a naive implementation (easy to read), and a NumPy version implementation (a bit faster).  
 The NumPy version might be x10+ faster than the naive version.  
 The kernel type can be specified with `Executable_Network.kernel_type` attribute. You can specify eitgher one of `'naive'` (default) or `'numpy'`. Please refer to the sample program `test_pyopenvino.py` for the details.  
-
-## Tested DL Models  
-- MNIST (Conv+FC+SoftMax)
-- Googlenet-v1
-- ssd-mobilenet-v1
-
-![resources/ssd_mobilenet_v1.png](resources/ssd_mobilenet_v1.png)
 
 END
