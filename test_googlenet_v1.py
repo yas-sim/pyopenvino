@@ -35,7 +35,7 @@ nitr = 1
 print('Kernel type:', exenet.kernel_type)
 for i in range(nitr):
     stime = time.time()
-    res = exenet.infer({'data':inblob}, verbose=False)    # Run inference
+    res = exenet.infer({'data':inblob}, verbose=True)    # Run inference
     etime = time.time()
     atime += etime-stime
 
