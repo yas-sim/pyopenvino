@@ -1,4 +1,4 @@
-# pyOpenVINO test program :-)
+# pyOpenVINO Integrity Test Program
 
 import time
 
@@ -108,6 +108,54 @@ def test_googlenet_v1():
         assert m[0]==338 and 359 in m[:3] and 358 in m[:3]
         print()
 
+
+#---------------------------------------------------------------
+# ssd_mobilenet_v1_coco
+
+def test_ssd_mobilenet_v1():
+    cv2img = cv2.imread('resources/guinea-pig.jpg')
+
+    # Display read image
+    disp_img = cv2.resize(cv2img, (300, 300))
+    cv2.imshow('input image', disp_img)
+    cv2.waitKey(1*1000)
+    cv2.destroyAllWindows()
+
+    inblob = cv2.resize(cv2img, (300,300))
+    inblob = inblob.transpose((2,0,1))
+    inblob = inblob.reshape(1,3,300,300).astype(np.float32)
+
+    model = 'models/ssd_mobilenet_v1_coco'
+
+    for kernel_type in kernel_types:
+        res = run_test(model, inblob, kernel_type, niter=1)
+
+        expected = (0.0, 16.0, 0.7186840772628784, 0.032441407442092896, 0.40934476256370544, 0.890156626701355, 0.9684370756149292)
+        record = res.reshape(100,7)[0] # Checks only the 1st object
+        n, class_id, conf, xmin, ymin, xmax, ymax = record
+        if conf>0.5:
+            canvas = disp_img.copy()
+            img_h, img_w = canvas.shape[:1+1]
+            x0 = int(xmin * img_w)
+            y0 = int(ymin * img_h)
+            x1 = int(xmax * img_w)
+            y1 = int(ymax * img_h)
+            cv2.rectangle(canvas, (x0, y0), (x1, y1), (255,255,0), 2)
+            cv2.putText(canvas, str(int(class_id)), (x0, y0), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,255), 2)
+            compare = np.allclose(expected, record, rtol=0.01)
+            print('Expected: ({}, {}, {}, ({}, {}), ({}, {}))'.format(*expected))
+            print('Result  : ({}, {}, {}, ({}, {}), ({}, {}))'.format(*record))
+            print('Compare :', 'OK' if compare else 'UNMATCH')
+            cv2.imshow('result', canvas)
+            cv2.waitKey(3*1000)
+            cv2.destroyWindow('result')
+            assert compare
+        else:
+            print('ERROR: No objects found.')
+            assert False
+        print()
+    cv2.destroyAllWindows()
+
 #---------------------------------------------------------------
 
 kernel_types = [ 'special', 'numpy' ]
@@ -116,5 +164,8 @@ kernel_types += [ 'naive' ]
 test_mnist()
 test_mnist_bn()
 test_googlenet_v1()
+
+kernel_types.remove('special')   # Currently, 'special' Convolution kernel with uneven padding doesn't work properly
+test_ssd_mobilenet_v1()
 
 print('Integrity test completed')

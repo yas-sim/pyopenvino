@@ -40,6 +40,7 @@ for i in range(nitr):
 
 print(atime/nitr, 'sec/inf')
 
+# Decode and display SSD result
 img_h, img_w = cv2img.shape[:1+1]
 for record in res['detection_boxes:0'].reshape(100,7):
     n, class_id, conf, xmin, ymin, xmax, ymax = record
@@ -49,7 +50,8 @@ for record in res['detection_boxes:0'].reshape(100,7):
         x1 = int(xmax * img_w)
         y1 = int(ymax * img_h)
         cv2.rectangle(cv2img, (x0, y0), (x1, y1), (255,255,0), 2)
-        cv2.putText(cv2img, str(class_id), (x0, y0), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,255), 2)
+        cv2.putText(cv2img, str(int(class_id)), (x0, y0), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,255), 2)
+        print('({}, {}, {}, ({}, {}), ({}, {}))'.format(n, class_id, conf, xmin, ymin, xmax, ymax))
 
 cv2.imshow('result', cv2img)
 cv2.waitKey(0)
