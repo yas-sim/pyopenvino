@@ -290,13 +290,6 @@ class Executable_Network:
             if len(res)>0:
                 for port_id, data in res.items():
                     G.nodes[task]['output'][port_id]['data'] = data
-                    # Result compare
-                    #print(G.nodes[task]['output'])
-                    #if fmap is not None:
-                    #    self.compare_results(node_name, data)
-                    #    #if 'StatefulPartitionedCall/sequential/conv2d_1/Conv2D' == node_name:
-                    #    #if 'StatefulPartitionedCall/sequential/conv2d/Conv2D' == node_name:
-                    #    #    disp_result(data)
 
     # OpenVINO IE compatible API - Run inference
     def infer(self, inputs:dict, verbose:bool=False) -> dict:

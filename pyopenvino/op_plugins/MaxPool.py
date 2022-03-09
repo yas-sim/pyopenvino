@@ -55,7 +55,7 @@ def kernel_MaxPool_numpy(inputs:dict, strides, pads_begin, pads_end, kernel, rou
     n,c,h,w  = input0.shape
 
     """
-    # A bit naive version of MaxPool-Numpy
+    # A bit more naive version of MaxPool-Numpy
     for bn in range(n):
         for ch in range(c):
             for y in range(oh):

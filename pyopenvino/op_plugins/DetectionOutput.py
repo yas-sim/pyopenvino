@@ -31,32 +31,17 @@ def iou(a, b):
 
 import cv2
 
-def nms(decoded_bboxes, class_num, confidence, nms_threshold, draw_rectangles=False):
+def nms(decoded_bboxes, class_num, confidence, nms_threshold):
     num_boxes = decoded_bboxes.shape[0]
     keep = [ True ] * num_boxes
     for box1_id, box1 in enumerate(decoded_bboxes[:-2]):
         for box2_id, box2 in enumerate(decoded_bboxes[box1_id+1:]):
-            if draw_rectangles:
-                canvas = np.zeros((300,300,3))
             iou_val = iou(box1, box2) 
             if iou_val > nms_threshold:
-                if draw_rectangles:
-                    cv2.rectangle(canvas, (int(box1[0]*300), int(box1[1]*300)), (int(box1[2]*300), int(box1[3]*300)), (0,0,255), 2)
-                    cv2.rectangle(canvas, (int(box2[0]*300), int(box2[1]*300)), (int(box2[2]*300), int(box2[3]*300)), (0,0,255), 4)
-                    cv2.imshow('result', canvas)
-                    cv2.waitKey(100)
                 if confidence[box1_id] < confidence[box2_id]:
                     keep[box1_id] = False
                 else:
                     keep[box2_id] = False
-            else:
-                if draw_rectangles:
-                    cv2.rectangle(canvas, (int(box1[0]*300), int(box1[1]*300)), (int(box1[2]*300), int(box1[3]*300)), (0,255,0), 2)
-                    cv2.rectangle(canvas, (int(box2[0]*300), int(box2[1]*300)), (int(box2[2]*300), int(box2[3]*300)), (0,255,0), 4)
-                    cv2.imshow('result', canvas)
-                    cv2.waitKey(10)
-    #if draw_rectangles:
-    #    cv2.destroyAllWindows()
 
     num_keep = np.count_nonzero(keep)
     new_decoded_bboxes = np.zeros((num_keep, 4), dtype=np.float32)
@@ -222,9 +207,11 @@ def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k
         clip_bounding_boxes(decoded_bboxes)
 
     if decrease_label_id == True:
+        #result = nms_mxnet(decoded_bboxes, class_num, confidence, nms_threshold)  # MxNet style
         result = nms(decoded_bboxes, class_num, confidence, nms_threshold)
         decoded_bboxes, confidence, class_num = result
     else:
+        #result = nms_caffe(decoded_bboxes, class_num, confidence, nms_threshold)  # Caffe style
         result = nms(decoded_bboxes, class_num, confidence, nms_threshold)
         decoded_bboxes, confidence, class_num = result
 
