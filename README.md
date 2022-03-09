@@ -10,12 +10,12 @@ Supported API is quite limited, but it mimics OpenVINO IE Python API. So, you ca
 - Very slow and limited functionality. Not a general DL inference engine.
 - Naive and straightforward code: (I hope) This is a good reference for learning deep-learning technology.  
 - Extensible ops: Ops are implemented as plugins. You can easily add your ops as needed.  
-- MNIST CNN and Googlenet-v1 are working.  
+- MNIST CNN, Googlenet-v1, and ssd-mobilenet-v1 are working.  
 
 ### Tested DL Models  
 - MNIST (Conv+FC+SoftMax)
 - Googlenet-v1
-- ssd-mobilenet-v1
+- SSD-mobilenet-v1
 ![resources/ssd_mobilenet_v1.png](resources/ssd_mobilenet_v1.png)
 
 ------------------------
