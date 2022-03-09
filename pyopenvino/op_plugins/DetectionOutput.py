@@ -10,13 +10,15 @@ def name():
 
 # Calculate IOU for non-maximum suppression
 def iou(a, b):
-    area_a = (a[2] - a[0]) * (a[3] - a[1])
-    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    ax0, ay0, ax1, ay1 = a
+    bx0, by0, bx1, by1 = b
+    area_a = (ax1 - ax0) * (ay1 - ay0)
+    area_b = (bx1 - bx0) * (by1 - by0)
 
-    iou_x1 = max(a[0], b[0])
-    iou_y1 = max(a[1], b[1])
-    iou_x2 = min(a[2], b[2])
-    iou_y2 = min(a[3], b[3])
+    iou_x1 = max(ax0, bx0)
+    iou_y1 = max(ay0, by0)
+    iou_x2 = min(ax1, bx1)
+    iou_y2 = min(ay1, by1)
 
     iou_w = iou_x2 - iou_x1
     iou_h = iou_y2 - iou_y1
@@ -24,9 +26,11 @@ def iou(a, b):
     if iou_w < 0 or iou_h < 0:
         return 0.0
 
-    area_iou = iou_w * iou_h
-    iou = area_iou / (area_a + area_b - area_iou)
-
+    try:
+        area_iou = iou_w * iou_h
+        iou = area_iou / (area_a + area_b - area_iou)
+    except ZeroDivisionError as e:
+        iou = 1e9
     return iou
 
 import cv2
@@ -34,10 +38,11 @@ import cv2
 def nms(decoded_bboxes, class_num, confidence, nms_threshold):
     num_boxes = decoded_bboxes.shape[0]
     keep = [ True ] * num_boxes
-    for box1_id, box1 in enumerate(decoded_bboxes[:-2]):
-        for box2_id, box2 in enumerate(decoded_bboxes[box1_id+1:]):
-            iou_val = iou(box1, box2) 
+    for box1_id in range(0, num_boxes-1):
+        for box2_id in range(box1_id+1, num_boxes):
+            iou_val = iou(decoded_bboxes[box1_id], decoded_bboxes[box2_id]) 
             if iou_val > nms_threshold:
+                assert box1_id != box2_id
                 if confidence[box1_id] < confidence[box2_id]:
                     keep[box1_id] = False
                 else:
