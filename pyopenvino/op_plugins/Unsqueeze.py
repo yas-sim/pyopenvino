@@ -10,7 +10,7 @@ def kernel_Unsqueeze_numpy(inputs):
     input0 = inputs[0]
     input1 = inputs[1]   # dims
 
-    res = np.expand_dims(input0, input1)   # np.expand_dims([3,3], (0,3)) -> [1,3,3,1]
+    res = np.expand_dims(input0, list(input1))   # np.expand_dims([3,3], (0,3)) -> [1,3,3,1]
     return res
 
 
