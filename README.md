@@ -80,7 +80,7 @@ python draw-and-infer.py
 #### How to Operate  
 - Left click to draw points.  
 - Right click to clear the canvas.  
-This demo program is using 'numpy' kernels for performance.  
+This demo program is using 'special' kernels for performance.  
 ![draw-and-infer](resources/draw_and_infer.png)
 ----------------------------------
 ## A Littile Description of the Implementation  
@@ -137,7 +137,7 @@ The kernel type can be specified with `Executable_Network.kernel_type` attribute
 
 ### Special Thanks
 
-The fastest 'special' convolution kernel is taken from '(deep-learning-from-scratch)[https://github.com/oreilly-japan/deep-learning-from-scratch]' project.
+The fastest 'special' convolution kernel is taken from '[deep-learning-from-scratch](https://github.com/oreilly-japan/deep-learning-from-scratch)' project.
 
 
 END
