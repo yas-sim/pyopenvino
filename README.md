@@ -72,7 +72,7 @@ Raw result: {'Func/StatefulPartitionedCall/output/_11:0': array([[7.8985136e-07,
 Result: [2 0 1 7 8 6 3 4 5 9]
 ```
 
-4. Run `Draw-and-Inter` demo  
+4. Run MNIST `Draw-and-Inter` demo  
 ```sh
 python draw-and-infer.py
 ```
