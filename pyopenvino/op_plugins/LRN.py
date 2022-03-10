@@ -7,6 +7,21 @@ def name():
     print('LRN')
 
 
+def kernel_LRN_numpy(inputs:dict, alpha:float, beta:float, bias:float, size:float):
+    input0 = inputs[0]
+    n,c,h,w = input0.shape
+
+    res = np.zeros_like(input0)
+
+    input_sq = input0 ** 2
+    denominator = np.zeros_like(input0)
+    for ch in range(c):
+        denominator[:,ch,:,:] = (bias+alpha*np.sum(input_sq[:, max(0,ch-size//2):min(c, ch+size//2+1), :, :], axis=1)) ** beta
+
+    res = input0 / denominator
+    return res
+
+
 def kernel_LRN_naive(inputs:dict, alpha:float, beta:float, bias:float, size:float):
     input0 = inputs[0]
     n,c,h,w = input0.shape
@@ -20,21 +35,6 @@ def kernel_LRN_naive(inputs:dict, alpha:float, beta:float, bias:float, size:floa
                 for x in range(w):
                     denominator = (bias+alpha*np.sum(input_sq[bn, max(0,ch-size//2):min(c, ch+size//2+1), y, x])) ** beta
                     res[bn, ch, y, x] = input0[bn, ch, y, x] / denominator
-    return res
-
-
-def kernel_LRN_numpy(inputs:dict, alpha:float, beta:float, bias:float, size:float):
-    input0 = inputs[0]
-    n,c,h,w = input0.shape
-
-    res = np.zeros_like(input0)
-
-    input_sq = input0 ** 2
-    denominator = np.zeros_like(input0)
-    for ch in range(c):
-        denominator[:,ch,:,:] = (bias+alpha*np.sum(input_sq[:, max(0,ch-size//2):min(c, ch+size//2+1), :, :], axis=1)) ** beta
-
-    res = input0 / denominator
     return res
 
 
