@@ -27,7 +27,7 @@ cv2.imshow('input image', cv2img)
 cv2.waitKey(1*1000)
 cv2.destroyAllWindows()
 
-exenet.kernel_type = 'numpy'    # Set kernel implementation type ('naive', 'numpy' or 'special')
+exenet.kernel_type = 'special'    # Set kernel implementation type ('naive', 'numpy' or 'special')
 atime = 0
 nitr = 1
 
