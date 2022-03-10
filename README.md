@@ -73,6 +73,7 @@ Result: [2 0 1 7 8 6 3 4 5 9]
 ```
 
 4. Run MNIST `Draw-and-Inter` demo  
+This demo program recognizes a number drawn by the user in real-time. You can draw a number on the screen by pointing device such as a mouse and the demo tells you the recognition result.  
 ```sh
 python draw-and-infer.py
 ```
