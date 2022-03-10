@@ -16,9 +16,7 @@ output_node_name = net.outputs[0]['name']
 exenet = ie.load_network(net, 'CPU')                 # Unlike genuine OpenVINO, pyOpenVINO doesn't have device plugins. This function just schedules tasks for runtime)
 
 # Read an image file to infer
-#cv2img = cv2.imread('resources/guinea-pig.jpg')
-cv2img = cv2.imread('resources/cow.jpg')
-#cv2img = cv2.imread('resources/cars.jpg')
+cv2img = cv2.imread('resources/guinea-pig.jpg')
 inblob = cv2.resize(cv2img, (300,300))
 inblob = inblob.transpose((2,0,1))
 inblob = inblob.reshape(1,3,300,300).astype(np.float32)
