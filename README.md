@@ -135,4 +135,9 @@ Not all, but some Ops have dual kernel implementation, a naive implementation (e
 The NumPy version might be x10+ faster than the naive version.  
 The kernel type can be specified with `Executable_Network.kernel_type` attribute. You can specify eitgher one of `'naive'` (default) or `'numpy'`. Please refer to the sample program `test_pyopenvino.py` for the details.  
 
+### Special Thanks
+
+The fastest 'special' convolution kernel is taken from '(deep-learning-from-scratch)[https://github.com/oreilly-japan/deep-learning-from-scratch]' project.
+
+
 END
