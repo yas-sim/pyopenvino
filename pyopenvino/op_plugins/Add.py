@@ -64,7 +64,6 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
         assert data.dtype == common_def.type_convert_tbl[input_port['precision']]
         assert data.shape == input_port['dims']
 
-    kernel_type = 'naive'
     if kernel_type == 'naive':
         res = kernel_Add_naive2(inputs)
     else:
