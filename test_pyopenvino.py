@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from pyopenvino.inference_engine import IECore
 
-model = 'models/mnist'
+model = 'models/mnist_bn'
 
 ie = IECore()                                        # Create core object
 net = ie.read_network(model+'.xml', model+'.bin')    # Read model file
@@ -26,7 +26,13 @@ cv2.imshow('input image', cv2img)
 cv2.waitKey(1*1000)
 cv2.destroyAllWindows()
 
-exenet.kernel_type = 'numpy'    # Set kernel implementation type ('naive', 'numpy' or 'special')
+exenet.kernel_type = 'naive'    # Set kernel implementation type ('naive', 'numpy' or 'special')
+
+# DEBUG CODE
+#import pickle
+#with open('mnist_bn_featmap.pickle', 'rb') as f:
+#    featmap = pickle.load(f)
+#exenet.expected_result = featmap
 
 atime = 0
 nitr = 1

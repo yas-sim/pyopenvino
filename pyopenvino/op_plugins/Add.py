@@ -34,13 +34,15 @@ def kernel_Add_naive(inputs:dict):
 def kernel_Add_naive2(inputs:dict):
     input0 = inputs[0]
     input1 = inputs[1]
+    print(input0.shape, input1.shape)
     input1 = np.broadcast_to(input1, input0.shape)
 
     assert input0.ndim <= 4
     shape_orig = input0.shape
     if input0.ndim < 4:         # Convert tensors to rank-4 tensors
         input0 = np.expand_dims(input0, tuple(range(4-input0.ndim)))
-        input1 = np.expand_dims(input0, tuple(range(4-input0.ndim)))
+        input1 = np.expand_dims(input1, tuple(range(4-input1.ndim)))
+    print(input0.shape, input1.shape)
 
     output = np.zeros_like(input0)
     shape = input0.shape

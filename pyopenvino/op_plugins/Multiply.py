@@ -29,7 +29,7 @@ def kernel_Multiply_naive(inputs:dict):
     shape_orig = input0.shape
     if input0.ndim < 4:         # Convert tensors to rank-4 tensors
         input0 = np.expand_dims(input0, tuple(range(4-input0.ndim)))
-        input1 = np.expand_dims(input0, tuple(range(4-input0.ndim)))
+        input1 = np.expand_dims(input1, tuple(range(4-input1.ndim)))
 
     output = np.zeros_like(input0)
     shape = input0.shape
@@ -53,7 +53,6 @@ def compute(node:dict, inputs:dict=None, kernel_type:str='naive', debug:bool=Fal
         assert data.dtype == common_def.type_convert_tbl[input_port['precision']]
         assert data.shape == input_port['dims']
 
-    if kernel_type == 'naive':
         res = kernel_Multiply_naive(inputs)
     else:
         res = kernel_Multiply_numpy(inputs)
