@@ -60,10 +60,9 @@ def im2col(input, kh, kw, strides, pads_begin, pads_end):
     n, c, h, w     = input.shape
     sh, sw         = strides
 
-    pad = max(pbh, pbw, peh, pew)
-    oh = (h+2*pad-kh)//sh+1
-    ow = (w+2*pad-kw)//sw+1
-    img = np.pad(input, [(0,0), (0,0), (pad, pad), (pad, pad)], 'constant')
+    oh = (h+pbh+peh-kh)//sh+1
+    ow = (w+pbw+pew-kw)//sw+1
+    img = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     col = np.zeros((n, c, kh, kw, oh, ow), dtype=np.float32)
 
     for y in range(kh):
