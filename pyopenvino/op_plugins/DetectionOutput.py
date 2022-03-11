@@ -200,11 +200,12 @@ def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k
         class_num[pbox_idx] = m[0]          # class id
         confidence[pbox_idx] = pred[m[0]]   # confidence value
 
+    # Reject low confidence prior boxes
     result = screen_out_prior_boxes(confidence, class_num, box_logits_, proposals_p, proposals_v, confidence_threshold)
     confidence, class_num, new_box_logits, new_proposals_p, new_proposals_v = result
     new_num_prior_boxes = len(new_box_logits)
 
-
+    # Calculate bounding box coordinates (0.0-1.0, normalized) from prior boxes and box logits
     decoded_bboxes = decode_bboxes(new_box_logits, new_proposals_p, new_proposals_v, new_num_prior_boxes, 0, num_loc_classes, offset, normalized,
                                     input_width, input_height, code_type, variance_encoded_in_target, clip_before_nms)
 
@@ -227,7 +228,6 @@ def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k
     #if normalized == False:
     #    normalize_boxes(input_height, input_width)
 
-
     # Calculate output shape
     output_shape = (1, 1, N * num_classes * num_prior_boxes, 7)
     if keep_top_k[0] > 0:
@@ -236,17 +236,15 @@ def kernel_DetectionOutput_naive(inputs, num_classes, background_label_id, top_k
         if top_k > 0:
             output_shape = (1, 1, N * top_k * num_classes, 7)
 
+    # Construct the final result [[idx, clsid, conf, xmin, ymin, xmax, ymax], ...]
     res = np.zeros(output_shape, dtype=np.float32)
-
     sorted_idx = np.argsort(confidence)[::-1]    # High -> Low order
-
     num_bboxes = len(decoded_bboxes)
     max_record = res.shape[2]
-
     for n in range(min(max_record, num_bboxes)):
         idx = sorted_idx[n]
-        class_id   = class_num[idx]
-        conf       = confidence[idx]
+        class_id = class_num[idx]
+        conf     = confidence[idx]
         xmin     = decoded_bboxes[idx][0]
         ymin     = decoded_bboxes[idx][1]
         xmax     = decoded_bboxes[idx][2]

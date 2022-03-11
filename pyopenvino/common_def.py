@@ -8,11 +8,15 @@ if platform.system() == 'Windows':
 
 from functools import reduce
 
+
+
 format_config = { 'FP32': ['f', 4], 'FP16': ['e', 2], 'F32' : ['f', 4], 'F16' : ['e', 2],
                   'I64' : ['q', 8], 'I32' : ['i', 4], 'I16' : ['h', 2], 'I8'  : ['b', 1], 'U8'  : ['B', 1] }
 
 type_convert_tbl = { 'f32':np.float32, 'f16':np.float16, 'i64':np.int64, 'i32':np.int32, 'i16':np.int16, 'i8':np.int8, 'u8':np.uint8,
                     'FP32':np.float32, 'FP16':np.float16, 'I64':np.int64 }
+
+
 
 def string_to_boolean(bool_val:str):
     bool_val = bool_val.upper()

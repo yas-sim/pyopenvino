@@ -54,23 +54,18 @@ def calc_output_shape(input_dim:tuple, kernel_dim:tuple, strides:tuple, pads_beg
 # Referred from 'deep-learning-from-scratch' project
 # https://github.com/oreilly-japan/deep-learning-from-scratch
 
-def im2col(input, kh, kw, strides, pads_begin, pads_end):
+def im2col(input, kh, kw, strides, pads_begin, pads_end, oh, ow):
     pbh, pbw       = pads_begin
     peh, pew       = pads_end
     n, c, h, w     = input.shape
     sh, sw         = strides
 
-    oh = (h+pbh+peh-kh)//sh+1
-    ow = (w+pbw+pew-kw)//sw+1
     img = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     col = np.zeros((n, c, kh, kw, oh, ow), dtype=np.float32)
 
     for y in range(kh):
-        y_max = y + sh * oh
         for x in range(kw):
-            x_max = x + sw * ow
-            col[:, :, y, x, :, :] = img[:, :, y:y_max:sh, x:x_max:sw]
-
+            col[:, :, y, x, :, :] = img[:, :, y:y+sh*oh:sh, x:x+sw*ow:sw]
     col = col.transpose(0, 4, 5, 1, 2, 3).reshape(n*oh*ow, -1)
     return col
 
@@ -84,7 +79,7 @@ def kernel_Convolution_im2col(inputs, strides, dilation, pads_begin, pads_end, a
     # output feature map size
     oh, ow = calc_output_shape((h, w), (kh, kw), (sh, sw), pads_begin, pads_end, 'floor', auto_pad)
 
-    col = im2col(input, kh, kw, strides, pads_begin, pads_end)
+    col = im2col(input, kh, kw, strides, pads_begin, pads_end, oh, ow)
     col_W = kernel.reshape(kn, -1).T
     output = np.dot(col, col_W)
     output = output.reshape(n, oh, ow, -1).transpose(0, 3, 1, 2)
@@ -109,7 +104,7 @@ def kernel_Convolution_numpy(inputs, strides, dilation, pads_begin, pads_end, au
     input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, kn, oh, ow), dtype=np.float32)
 
-    n, c, h, w     = input.shape   # Input image (padded)
+    n, c, h, w = input.shape   # Input image (padded)
 
     for fc in range(kn):  # Number of filters
         for dy in range(oh):
@@ -136,7 +131,7 @@ def kernel_Convolution_naive(inputs, strides, dilation, pads_begin, pads_end, au
     input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, kn, oh, ow), dtype=np.float32)
 
-    n, c, h, w     = input.shape   # Input image (padded)
+    n, c, h, w = input.shape   # Input image (padded)
 
     for fc in range(kn):  # Number of filters
         for dy in range(oh):

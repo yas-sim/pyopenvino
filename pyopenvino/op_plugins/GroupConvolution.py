@@ -66,7 +66,7 @@ def kernel_GroupConvolution_numpy(inputs, strides, dilation, pads_begin, pads_en
     input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, grp*ch_o, oh, ow), dtype=input.dtype)    # [ N, GROUPS * C_OUT, Y, X ]
 
-    n, c, h, w     = input.shape   # Input image (padded)
+    n, c, h, w = input.shape   # Input image (padded)
 
     for ci in range(ch_i):  # C_IN
         for gp in range(grp): # GROUPS
@@ -96,7 +96,7 @@ def kernel_GroupConvolution_naive(inputs, strides, dilation, pads_begin, pads_en
     input = np.pad(input, [(0,0), (0,0), (pbh, peh), (pbw, pew)], 'constant')
     output = np.zeros((n, grp*ch_o, oh, ow), dtype=input.dtype)    # [ N, GROUPS * C_OUT, Y, X ]
 
-    n, c, h, w     = input.shape   # Input image (padded)
+    n, c, h, w = input.shape   # Input image (padded)
 
     for ci in range(ch_i):  # C_IN
         for gp in range(grp): # GROUPS
@@ -107,7 +107,7 @@ def kernel_GroupConvolution_naive(inputs, strides, dilation, pads_begin, pads_en
                             for fx in range(kw):
                                 flt = kernel[gp, co, ci, fy, fx]
                                 dt  = input[0, gp*ci+gp, dy*sh+fy*dh, dx*sw+fx*dw]
-                                output[0, gp*co+gp, dy, dx] += flt * dt
+                                output[0, gp*co+gp, dy, dx] += flt*dt
     return output
 
 # ---------------------------------------------------------------------------------------
